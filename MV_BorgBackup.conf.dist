@@ -14,8 +14,10 @@ printf -v DT_TODAY '%(%F)T' -1  # JJJJ-MM-DD (2017-10-19)
 printf -v DT_NOW '%(%F_%H%M)T' -1  # JJJJ-MM-DD_HHMM (2017-10-19_1107)
 
 # Optionen für borg; Verzeichnisse dürfen nicht angegeben werden
-# Vorgabewerte; Müssen normalerweise nicht geändert werden
-BORG_OPT=(--stats --verbose)
+# Vorgabewerte; Müssen normalerweise nicht geändert werden. https://borgbackup.readthedocs.io/en/stable/usage/create.html
+BORG_CREATE_OPT=(--info --stats)
+# Weitere Ausschlüsse
+BORG_CREATE_OPT+=(--exclude-caches --exclude-if-present .nobackup --keep-tag-files)
 
 # Optionen für borg prune. https://borgbackup.readthedocs.io/en/stable/usage/prune.html
 BORG_PRUNE_OPT=(--list --verbose)
@@ -189,8 +191,9 @@ POST_ACTION=''
 # "${TMPDIR:-/tmp}" TMPDIR wird im Skript gesetzt, falls Leer, dann /tmp
 #exfrom[nr]="$(mktemp "${TMPDIR:-/tmp}/tmp.XXXX")"
 
-# [optional] Optionen für borg, wenn nicht die Optionen aus $BORG_OPT (s.o.) verwendet werden sollen
-#borg_opt[nr]=''
+# [optional] Optionen für borg, wenn nicht die Optionen aus $BORG_CREATE_OPT (s.o.)
+# verwendet werden sollen
+#borg_create_opt[nr]=''
 
 # Dateien und Verzeichnisse, die von der Sicherung ausgeschlossen werden sollen
 # Pro Zeile 1 Pfad; Pfadangaben mit Leerzeichen müssen nicht gesondert behandelt werden
@@ -225,7 +228,7 @@ minfree_bg[nr]=''             # Mindestens frei auf dem Ziel (in MB). Wird alle 
        log[nr]="${target[nr]}/${DT_TODAY}_${title[nr]}.log"
   save_acl[nr]=''
     exfrom[nr]="$(mktemp "${TMPDIR:-/tmp}/tmp.XXXX")"
-  borg_opt[nr]=''
+  borg_create_opt[nr]=''
 cat > "${exfrom[nr]}" <<_EOF_
 Dropbox/
 Nextcloud/
@@ -250,7 +253,7 @@ _EOF_
 #       log[nr]="${target[nr]}/${DT_TODAY}_${title[nr]}.log"
 #  save_acl[nr]=''
 #    exfrom[nr]="$(mktemp "${TMPDIR:-/tmp}/tmp.XXXX")"
-#  borg_opt[nr]=''
+#  borg_create_opt[nr]=''
 #cat > "${exfrom[nr]}" <<_EOF_
 #
 #_EOF_

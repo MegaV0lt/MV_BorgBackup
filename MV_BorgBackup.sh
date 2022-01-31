@@ -30,7 +30,7 @@ fi
 SELF="$(readlink /proc/$$/fd/255)" || SELF="$0"  # Eigener Pfad (besseres $0)
 SELF_NAME="${SELF##*/}"                          # skript.sh
 TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/${SELF_NAME%.*}.XXXX")"   # Ordner für temporäre Dateien
-declare -a _BORG_OPT ERRLOGS LOGFILES BORGRC BORGPROF UNMOUNT  # Einige Array's
+declare -a _BORG_CREATE_OPT ERRLOGS LOGFILES BORGRC BORGPROF UNMOUNT  # Einige Array's
 declare -A _arg _target
 msgERR='\e[1;41m FEHLER! \e[0;1m' ; nc="\e[0m"  # Anzeige "FEHLER!" ; Reset der Farben
 msgINF='\e[42m \e[0m' ; msgWRN='\e[103m \e[0m'  # " " mit grünem/gelben Hintergrund
@@ -123,8 +123,10 @@ f_settings() {
     # Benötigte Werte aus dem Array (.conf) holen
     for i in "${!arg[@]}" ; do  # Anzahl der vorhandenen Profile ermitteln
       if [[ "${arg[i]}" == "$PROFIL" ]] ; then  # Wenn das gewünschte Profil gefunden wurde
-        # BORG_OPT und MOUNT wieder herstelen
-        [[ -n "${_BORG_OPT[*]}" ]] && { read -r -a BORG_OPT <<< "${_BORG_OPT[@]}" ; unset -v '_BORG_OPT' ;}
+        # BORG_CREATE_OPT und MOUNT wieder herstelen
+        if [[ -n "${_BORG_CREATE_OPT[*]}" ]] ; then
+          read -r -a BORG_CREATE_OPT <<< "${_BORG_CREATE_OPT[@]}" ; unset -v '_BORG_CREATE_OPT'
+        fi
         [[ -n "$_MOUNT" ]] && { MOUNT="$_MOUNT" ; unset -v '_MOUNT' ;}
         [[ "$MOUNT" == '0' ]] && unset -v 'MOUNT'  # MOUNT war nicht gesetzt
         TITLE="${title[i]}"   ; ARG="${arg[i]}"       ; MODE="${mode[i]}"
@@ -159,7 +161,9 @@ f_settings() {
         [[ -n "${mount[i]}" ]] && { _MOUNT="${MOUNT:-0}" ; MOUNT="${mount[i]}" ;}  # Eigener Einhängepunkt
         case "${MODE^^}" in  # ${VAR^^} ergibt Großbuchstaben!
           *) MODE='N' ; MODE_TXT='Normal'  # Vorgabe: Normaler Modus
-            [[ -n "${borg_opt[i]}" ]] && { read -r -a _BORG_OPT <<< "${BORG_OPT[@]}" ; read -r -a BORG_OPT <<< "${borg_opt[i]}" ;}
+            if [[ -n "${borg_create_opt[i]}" ]] ; then
+              read -r -a _BORG_CREATE_OPT <<< "${BORG_CREATE_OPT[@]}"
+              read -r -a BORG_CREATE_OPT <<< "${borg_create_opt[i]}"
           ;;
         esac  # MODE
         [[ -n "$MINFREE_BG" && "$MODE" != 'S' ]] && MODE_TXT+=" + HÜ [${MINFREE_BG} MB]"
@@ -546,14 +550,14 @@ for PROFIL in "${P[@]}" ; do
       if [[ -z "$SKIP_FULL" ]] ; then
         # Sicherung mit borg starten
         echo "==> $dt - $SELF_NAME [#${VERSION}] - Start:" >> "$LOG"  # Sicher stellen, dass ein Log existiert
-        echo "borg create ${BORG_OPT[*]} --exclude-from=${EXFROM:-'Nicht_gesetzt'} ${R_TARGET}::${ARCHIV} ${SOURCE[*]}" >> "$LOG"
+        echo "borg create ${BORG_CREATE_OPT[*]} --exclude-from=${EXFROM:-'Nicht_gesetzt'} ${R_TARGET}::${ARCHIV} ${SOURCE[*]}" >> "$LOG"
         echo -e "$msgINF Starte Sicherung (borg)…"
         if [[ "$PROFIL" == 'customBak' ]] ; then  # Verzeichnisse wurden manuell übergeben
           export -n BORG_PASSPHRASE  # unexport
-          borg create "${BORG_OPT[@]}" "${R_TARGET}::${ARCHIV}" "${SOURCE[@]}" &>> "$LOG"
+          borg create "${BORG_CREATE_OPT[@]}" "${R_TARGET}::${ARCHIV}" "${SOURCE[@]}" &>> "$LOG"
         else
           export BORG_PASSPHRASE
-          borg create "${BORG_OPT[@]}" --exclude-from="$EXFROM" "${R_TARGET}::${ARCHIV}" "${SOURCE[@]}" &>> "$LOG"
+          borg create "${BORG_CREATE_OPT[@]}" --exclude-from="$EXFROM" "${R_TARGET}::${ARCHIV}" "${SOURCE[@]}" &>> "$LOG"
           BORG_PID=$!  # PID von borg
         fi
         RC=$? ; [[ $RC -ne 0 ]] && { BORGRC+=("$RC") ; BORGPROF+=("$TITLE") ;}  # Profilname und Fehlercode merken
