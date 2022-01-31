@@ -21,8 +21,7 @@ Zusätzliche Funktionen sind unter Anderem:
 - Verschiedene Möglichkeiten den freien Platz auf dem Ziellaufwerk zu überwachen
 - Dateizugriffskontrollisten könenn zusätzlich gesichert werden. Praktisch, wenn das Sicherungsziel keine Zugriffsrechte unterstützt.
 
-
-![Hilfe](help.png)
+![help](https://user-images.githubusercontent.com/2804301/151806725-1e939d46-3dff-4184-856f-1b4d293d1245.png)
 
 Beispiel einer eMail (Abschaltbar oder nur im Fehlerfall) nach erfolgter Sicherung aus:
 ![Sicherungs-Bericht](https://user-images.githubusercontent.com/2804301/151801304-ae425ff4-0ed8-4966-afa4-3c013cacb06e.png)
