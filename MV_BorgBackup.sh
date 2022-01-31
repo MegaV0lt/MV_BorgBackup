@@ -164,6 +164,7 @@ f_settings() {
             if [[ -n "${borg_create_opt[i]}" ]] ; then
               read -r -a _BORG_CREATE_OPT <<< "${BORG_CREATE_OPT[@]}"
               read -r -a BORG_CREATE_OPT <<< "${borg_create_opt[i]}"
+            fi
           ;;
         esac  # MODE
         [[ -n "$MINFREE_BG" && "$MODE" != 'S' ]] && MODE_TXT+=" + HÜ [${MINFREE_BG} MB]"
