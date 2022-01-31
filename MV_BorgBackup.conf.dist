@@ -17,7 +17,7 @@ printf -v DT_NOW '%(%F_%H%M)T' -1  # JJJJ-MM-DD_HHMM (2017-10-19_1107)
 # Vorgabewerte; Müssen normalerweise nicht geändert werden. https://borgbackup.readthedocs.io/en/stable/usage/create.html
 BORG_CREATE_OPT=(--info --stats)
 # Weitere Ausschlüsse
-BORG_CREATE_OPT+=(--exclude-caches --exclude-if-present .nobackup --keep-tag-files)
+BORG_CREATE_OPT+=(--exclude-caches --exclude-if-present .nobackup --keep-exclude-tags)
 
 # Optionen für borg prune. https://borgbackup.readthedocs.io/en/stable/usage/prune.html
 BORG_PRUNE_OPT=(--list --verbose)
