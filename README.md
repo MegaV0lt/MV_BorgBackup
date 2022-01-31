@@ -25,7 +25,7 @@ Zusätzliche Funktionen sind unter Anderem:
 ![Hilfe](help.png)
 
 Beispiel einer eMail (Abschaltbar oder nur im Fehlerfall) nach erfolgter Sicherung aus:
-![Sicherungs-Bericht](Sicherungs-Bericht.png)
+![Sicherungs-Bericht](https://user-images.githubusercontent.com/2804301/151801304-ae425ff4-0ed8-4966-afa4-3c013cacb06e.png)
 
 Das Skript benötigt "GNU Bash" ab Version 4. Wenn möglich, wird auf externe Programme wie sed oder awk verzichtet. Trotzdem benötigt das Skript einige weitere externe Programme. Konfigurationsabhängig werden noch mount oder curlftpfs benötigt.
 Die Verwendung geschieht wie immer auf eigene Gefahr. Wer Fehler findet, kann hier ein Ticket eröffnen oder im DEB eine Anfrage stellen. Auch neue Funktionen baue ich gerne ein, so sie mir denn als sinnvoll erscheinen.
@@ -41,6 +41,7 @@ Benötigt werden (U. a. Konfigurationsabhängig):
 - tar (Zusätzliche Sicherung und um gepackte Log-Dateien per eMail zu senden)
 - getfacl (Dateizugriffskontrollisten (ACLS) sichern)
 - ...
+
 
 Die Konfiguration erfolgt über die .conf welche viele (hoffentlich) aussagekräftige Kommentare enthält.
 
