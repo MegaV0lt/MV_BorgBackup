@@ -209,33 +209,26 @@ nr=0  # Für die Nummerierung der Profile
 
 # = = = Profil 1  = = =
 ((nr+=1))                     # Fortlaufende Profil-Nummer
-     title[nr]='Test'     # Profilname
-       arg[nr]='t'            # Argument (-p r)
+     title[nr]='Home_etc'     # Profilname
+       arg[nr]='h'            # Argument (-p r)
       mode[nr]=''             # Modus (Normal)
      mount[nr]=''             # Eigener Einhängepunkt
     ftpsrc[nr]=''             # Quelle ist ein FTP
     ftpmnt[nr]=''             # Einhängepunkt für die FTP-Quelle
-    source[nr]='/etc/cron.d;/etc/init.d'  # Pfade mit ';' trennen
-    #target[nr]="${mount[nr]:-$MOUNT}/_Backup/VDR/Root"
-    target[nr]="/tmp/_Backup/Test/Testdata"
+    source[nr]='/home/darkwing;/etc'  # Pfade mit ';' trennen
+    #target[nr]="${mount[nr]:-$MOUNT}/_Backup/PC/Home_etc"
     archiv[nr]=''             # Borg-Archivname. Vorgabe ist {now:%Y-%m-%d_%H:%M}
-passphrase[nr]='88152'             # Borg Passphrase für das Archiv
+passphrase[nr]='P455w0rd'     # Borg Passphrase für das Archiv
    minfree[nr]=''             # In MegaByte (1024 KByte)
  skip_full[nr]=''             # Wenn gesetzt (1, yes, True, ...) wird das Profil übersprungen
 minfree_bg[nr]=''             # Mindestens frei auf dem Ziel (in MB). Wird alle 5 Minuten geprüft
-       log[nr]="/tmp/_Backup/Test/Testdata/${DT_TODAY}_${title[nr]}.log"
+       log[nr]="${target[nr]}/${DT_TODAY}_${title[nr]}.log"
   save_acl[nr]=''
     exfrom[nr]="$(mktemp "${TMPDIR:-/tmp}/tmp.XXXX")"
   borg_opt[nr]=''
 cat > "${exfrom[nr]}" <<_EOF_
-dev/
-lost+found/
-mnt/
-proc/
-sys/
-tmp/
-var/tmp/
-video/
+Dropbox/
+Nextcloud/
 _EOF_
 
 
