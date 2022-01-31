@@ -1,0 +1,13 @@
+
+MV_Backup.sh - Backup-Skript für Linux Bash
+Author: MegaV0lt
+Forum: http://j.mp/1TblNNj
+
+Alle Anpassungen zum Skript, kann man hier und in der .conf nachlesen.
+Wer sich erkenntlich zeigen möchte, kann mir gerne einen kleinen Betrag zukommen
+lassen: => http://paypal.me/SteBlo
+Der Betrag kann frei gewählt werden. Vorschlag: 2 EUR
+
+
+2022.01.31
+  Erste Version des von MV_Backup stammenden Skripts, das borg zum sichern verwendet
