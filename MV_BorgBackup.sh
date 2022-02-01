@@ -178,7 +178,7 @@ f_del_old_backup() {  # Archive älter als $DEL_OLD_BACKUP Tage löschen
   local dt del_old_backup="${DEL_OLD_BACKUP:-30}"
   printf -v dt '%(%F %R.%S)T' -1
   echo "Lösche alte Sicherungen aus ${1}…"
-  { echo "${dt}: Lösche alte Sicherungen aus ${1}…"
+  { echo -e "${dt}: Lösche alte Sicherungen aus ${1}…\n"
     export BORG_PASSPHRASE
     borg prune "${BORG_PRUNE_OPT[@]}" "$1" "${BORG_PRUNE_OPT_KEEP[@]}"
     # Logdatei(en) löschen (Wenn $TITLE im Namen)
