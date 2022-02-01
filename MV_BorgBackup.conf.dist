@@ -16,6 +16,7 @@ printf -v DT_NOW '%(%F_%H%M)T' -1  # JJJJ-MM-DD_HHMM (2017-10-19_1107)
 # Optionen für borg; Verzeichnisse dürfen nicht angegeben werden
 # Vorgabewerte; Müssen normalerweise nicht geändert werden. https://borgbackup.readthedocs.io/en/stable/usage/create.html
 BORG_CREATE_OPT=(--info --stats)
+#BORG_CREATE_OPT+=(--list)  # Aktivieren für ausführliche Logs
 # Weitere Ausschlüsse
 BORG_CREATE_OPT+=(--exclude-caches --exclude-if-present .nobackup --keep-exclude-tags)
 
@@ -198,7 +199,7 @@ POST_ACTION=''
 # Dateien und Verzeichnisse, die von der Sicherung ausgeschlossen werden sollen
 # Pro Zeile 1 Pfad; Pfadangaben mit Leerzeichen müssen nicht gesondert behandelt werden
 # ACHTUNG: Die Pfade sind relativ!
-#   tmp/                schließt /tmp und /var/tmp aus
+#   */tmp/              schließt /tmp und /var/tmp aus
 #   /tmp/               schließt nur /tmp aus
 #   /tmp/*              behält /tmp/ aber schließt den Inhalt aus
 #   /var/spool/lpd//cf  schließt Dateien auf, die mit cf beginnen und
