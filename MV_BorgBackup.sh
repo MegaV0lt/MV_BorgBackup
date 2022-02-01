@@ -4,7 +4,7 @@
 # Author: MegaV0lt                                                                      #
 # Forum: http://j.mp/1TblNNj                                                            #
 # GIT: https://github.com/MegaV0lt/MV_BorgBackup                                        #
-# Abgeleitet von MV_Backup                        #
+# Abgeleitet von MV_Backup                                                              #
 #                                                                                       #
 # Alle Anpassungen zum Skript, kann man in der HISTORY und in der .conf nachlesen. Wer  #
 # sich erkenntlich zeigen möchte, kann mir gerne einen kleinen Betrag zukommen lassen:  #
