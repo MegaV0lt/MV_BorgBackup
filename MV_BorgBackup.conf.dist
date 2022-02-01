@@ -1,4 +1,4 @@
-########################### KONFIGURATION zum MV_Backup Skript ##########################
+######################### KONFIGURATION zum MV_BorgBackup Skript ########################
 #
 # Alle Anpassungen zum Skript, kann man hier und im Skript am Anfang der Datei nachlesen.
 # Wer sich erkenntlich zeigen möchte, kann mir gerne einen kleinen Betrag zukommen lassen:
@@ -125,10 +125,7 @@ POST_ACTION=''
 # Erlaubt sind a-z. Nur einen Buchstaben verwenden!
 #arg[nr]='m'
 
-# [optional] Modus für die Sicherung. Parameter "Snapshot" verwenden um Snapshots zu erstellen
-# Z.B. 'Snapshot', 'snapshot' oder 'snap' für den Snapshot-Modus
-# Z.B. 'Daemon', 'daemon' oder 'd' für den Daemon-Modus
-# Z.B. 'Multi', 'multi' oder 'm' für den experimentellem Multi rsync-Modus
+# [optional] Modus für die Sicherung.
 # '', 'default' oder 'Normal' für den Normal-Modus
 #mode[nr]=''             # Modus (Normal, Snapshot, Daemon oder Multi)
 
@@ -169,13 +166,13 @@ POST_ACTION=''
 #minfree[nr]=100  # In MegaByte (1024 KB) # 1024 = 1 GB
 
 # [optional] Wenn gesetzt, dann wird bei ungenügend freiem Speicher das Profil
-# nicht gestartet und ein Logeintrag im Fehlerlog erstellt (Nur im Modus normal/multi)
+# nicht gestartet und ein Logeintrag im Fehlerlog erstellt
 #skip_full[nr]=1  # Wenn gesetzt (1, yes, True, ...) wird das Profil übersprungen
 
 # [optional] Wert in MegaByte. Freier Platz, der auf dem Ziel mindestens frei
 # sein muss. Bei Unterschreitung wird eine Warnung angezeigt und in das Fehlerlog
 # geschrieben. Das Backup wird abgebrochen! Darf nicht mit minfree[nr] verwendet
-# werden (Nur im Modus normal und multi)
+# werden
 #minfree_bg[nr]=100  # Mindestens frei auf dem Ziel (in MB). Wird alle 5 Minuten geprüft
 
 # [optional] Logdatei, in der die Ausgabe von borg gespeichert wird
@@ -198,7 +195,6 @@ POST_ACTION=''
 
 # Dateien und Verzeichnisse, die von der Sicherung ausgeschlossen werden sollen
 # Pro Zeile 1 Pfad; Pfadangaben mit Leerzeichen müssen nicht gesondert behandelt werden
-# ACHTUNG: Die Pfade sind relativ!
 #   */tmp/              schließt /tmp und /var/tmp aus
 #   /tmp/               schließt nur /tmp aus
 #   /tmp/*              behält /tmp/ aber schließt den Inhalt aus
@@ -220,7 +216,7 @@ nr=0  # Für die Nummerierung der Profile
     ftpsrc[nr]=''             # Quelle ist ein FTP
     ftpmnt[nr]=''             # Einhängepunkt für die FTP-Quelle
     source[nr]='/home/darkwing;/etc'  # Pfade mit ';' trennen
-    #target[nr]="${mount[nr]:-$MOUNT}/_Backup/PC/Home_etc"
+    target[nr]="${mount[nr]:-$MOUNT}/_Backup/PC/Home_etc"
     archiv[nr]=''             # Borg-Archivname. Vorgabe ist {now:%Y-%m-%d_%H:%M}
 passphrase[nr]='P455w0rd'     # Borg Passphrase für das Archiv
    minfree[nr]=''             # In MegaByte (1024 KByte)
@@ -231,8 +227,8 @@ minfree_bg[nr]=''             # Mindestens frei auf dem Ziel (in MB). Wird alle 
     exfrom[nr]="$(mktemp "${TMPDIR:-/tmp}/tmp.XXXX")"
   borg_create_opt[nr]=''
 cat > "${exfrom[nr]}" <<_EOF_
-Dropbox/
-Nextcloud/
+*/Dropbox/
+*/Nextcloud/
 _EOF_
 
 
