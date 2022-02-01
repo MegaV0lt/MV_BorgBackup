@@ -1,17 +1,17 @@
 #!/bin/bash
-# = = = = = = = = = = = = =  MV_Backup.sh - Borg BACKUP  = = = = = = = = = = = = = = =  #
+# = = = = = = = = = = = =  MV_BorgBackup.sh - Borg BACKUP  = = = = = = = = = = = = = =  #
 #                                                                                       #
 # Author: MegaV0lt                                                                      #
 # Forum: http://j.mp/1TblNNj                                                            #
-# GIT: https://github.com/MegaV0lt/MV_Backup                                            #
-# Basiert auf dem RSYNC-BACKUP-Skript von JaiBee (Siehe HISTORY)                        #
+# GIT: https://github.com/MegaV0lt/MV_BorgBackup                                        #
+# Abgeleitet von MV_Backup                        #
 #                                                                                       #
 # Alle Anpassungen zum Skript, kann man in der HISTORY und in der .conf nachlesen. Wer  #
 # sich erkenntlich zeigen möchte, kann mir gerne einen kleinen Betrag zukommen lassen:  #
 # => http://paypal.me/SteBlo <= Der Betrag kann frei gewählt werden.                    #
 #                                                                                       #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-VERSION=220131
+VERSION=220201
 
 # Dieses Skript sichert / synchronisiert Verzeichnisse mit borg.
 # Dabei können beliebig viele Profile konfiguriert oder die Pfade direkt an das Skript übergeben werden.
@@ -24,7 +24,7 @@ if ((BASH_VERSINFO[0] < 4)) ; then  # Test, ob min. Bash Version 4.0
 fi
 
 # Skriptausgaben zusätzlich in Datei speichern. (DEBUG)
-# exec > >(tee -a /var/log/MV_Backup.log) 2>&1
+# exec > >(tee -a /var/log/MV_BorgBackup.log) 2>&1
 
 # --- INTERNE VARIABLEN ---
 SELF="$(readlink /proc/$$/fd/255)" || SELF="$0"  # Eigener Pfad (besseres $0)
@@ -112,7 +112,7 @@ f_help() {
   echo -e '\e[37;100m Beispiele \e[0m'
   echo -e "  \e[32mProfil \"${title[2]}\"\e[0m starten und den Computer anschließend \e[31mherunterfahren\e[0m:"
   echo -e "\t$0 \e[32m-p${arg[2]}\e[0m \e[31m-s\e[0m\n"
-  echo -e '  \e[33m"/tmp/Quelle1/"\e[0m und \e[35m"/Leer zeichen2/"\e[0m mit \e[36m"/media/extern"\e[0m synchronisieren;\n  anschließend \e[31mherunterfahren\e[0m:'
+  echo -e '  \e[33m"/tmp/Quelle1/"\e[0m und \e[35m"/Leer zeichen2/"\e[0m in \e[36m"/media/extern"\e[0m sichern;\n  anschließend \e[31mherunterfahren\e[0m:'
   echo -e "\t$0 \e[31m-s\e[0;4mm\e[0m \e[33m/tmp/Quelle1\e[0m \e[4m\"\e[0;35m/Leer zeichen2\e[0;4m\"\e[0m \e[36m/media/extern\e[0m"
   f_exit 1
 }
@@ -167,7 +167,7 @@ f_settings() {
             fi
           ;;
         esac  # MODE
-        [[ -n "$MINFREE_BG" && "$MODE" != 'S' ]] && MODE_TXT+=" + HÜ [${MINFREE_BG} MB]"
+        [[ -n "$MINFREE_BG" ]] && MODE_TXT+=" + HÜ [${MINFREE_BG} MB]"
       fi
     done
   fi
