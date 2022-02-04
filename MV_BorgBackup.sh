@@ -11,7 +11,7 @@
 # => http://paypal.me/SteBlo <= Der Betrag kann frei gewählt werden.                    #
 #                                                                                       #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-VERSION=220201
+VERSION=220204
 
 # Dieses Skript sichert / synchronisiert Verzeichnisse mit borg.
 # Dabei können beliebig viele Profile konfiguriert oder die Pfade direkt an das Skript übergeben werden.
@@ -30,7 +30,7 @@ fi
 SELF="$(readlink /proc/$$/fd/255)" || SELF="$0"  # Eigener Pfad (besseres $0)
 SELF_NAME="${SELF##*/}"                          # skript.sh
 TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/${SELF_NAME%.*}.XXXX")"   # Ordner für temporäre Dateien
-declare -a _BORG_CREATE_OPT ERRLOGS LOGFILES BORGRC BORGPROF UNMOUNT  # Einige Array's
+declare -a _BORG_CREATE_OPT ERRLOGS LOGFILES BORGRC BORGPROF UNMOUNT SSH_TARGET  # Einige Array's
 declare -A _arg _target
 msgERR='\e[1;41m FEHLER! \e[0;1m' ; nc="\e[0m"  # Anzeige "FEHLER!" ; Reset der Farben
 msgINF='\e[42m \e[0m' ; msgWRN='\e[103m \e[0m'  # " " mit grünem/gelben Hintergrund
@@ -153,12 +153,26 @@ f_settings() {
           echo -e " MINFREE:    \"${MINFREE:-$notset}\"\n MINFREE_BG: \"${MINFREE_BG:-$notset}\"" ; f_exit 1
         fi
         : "${TITLE:=Profil_${ARG}}"  # Wenn Leer, dann Profil_ gefolgt von Parameter
-        : "${LOG:=${TMPDIR}/${SELF_NAME%.*}.log}"  # Temporäre Logdatei
+        : "${LOG:=${TMPDIR}/${SELF_NAME%.*}_${DT_NOW}.log}"  # Temporäre Logdatei
         ERRLOG="${LOG%.*}.err.log"                 # Fehlerlog im Logverzeichnis der Sicherung
         : "${FILES_DIR:=borg_repository}"          # Vorgabe für Sicherungsordner
         : "${ARCHIV:="{now:%Y-%m-%d_%H:%M}"}"      # Vorgabe für Archivname (Borg)
         # Bei mehreren Profilen müssen die Werte erst gesichert und später wieder zurückgesetzt werden
         [[ -n "${mount[i]}" ]] && { _MOUNT="${MOUNT:-0}" ; MOUNT="${mount[i]}" ;}  # Eigener Einhängepunkt
+        unset -v 'SSH_TARGET' 'SSH_LOG'
+        if [[ "$TARGET" =~ '@' ]] ; then
+          SSH_TARGET[0]="${TARGET##*//}"        # ohne 'ssh://'
+          SSH_TARGET[1]="${SSH_TARGET[0]%%/*}"  # Pfade abschneiden (user@host[:port])
+          SSH_TARGET[2]="/${SSH_TARGET[0]#*/}/${FILES_DIR}"  # Pfad zum Repository
+          SSH_TARGET[3]="${SSH_TARGET[1]#*:}"   # Port
+        fi
+        if [[ "$LOG" =~ '@' ]] ; then
+          SSH_LOG[0]="${LOG##*//}" ; SSH_ERRLOG[0]="${ERRLOG##*//}"              # ohne 'ssh://'
+          SSH_LOG[1]="${SSH_LOG[0]%%/*}" ; SSH_ERRLOG[1]="${SSH_ERRLOG[0]%%/*}"  # Pfade abschneiden (user@host[:port])
+          SSH_LOG[2]="/${SSH_LOG[0]#*/}" ; SSH_ERRLOG[2]="/${SSH_ERRLOG[0]#*/}"  # Pfad zum Log
+          SSH_LOG[3]="${SSH_LOG[1]#*:}" ; SSH_ERRLOG[3]="${SSH_ERRLOG[1]#*:}"    # Port
+		  LOG="${TMPDIR}/${LOG##*/}" ; ERRLOG="${TMPDIR}/${ERRLOG##*/}"
+        fi
         case "${MODE^^}" in  # ${VAR^^} ergibt Großbuchstaben!
           *) MODE='N' ; MODE_TXT='Normal'  # Vorgabe: Normaler Modus
             if [[ -n "${borg_create_opt[i]}" ]] ; then
@@ -182,17 +196,20 @@ f_del_old_backup() {  # Archive älter als $DEL_OLD_BACKUP Tage löschen
     export BORG_PASSPHRASE
     borg prune "${BORG_PRUNE_OPT[@]}" "$1" "${BORG_PRUNE_OPT_KEEP[@]}"
     # Logdatei(en) löschen (Wenn $TITLE im Namen)
-    echo "Lösche alte Logdateien (${del_old_backup} Tage) aus ${LOG%/*}…"
-    find "${LOG%/*}" -maxdepth 1 -type f -mtime +"$del_old_backup" \
-      -name "*${TITLE}*" ! -name "${LOG##*/}" -print0 \
-        | xargs --null rm --recursive --force --verbose
-    if [[ -n "$SAVE_ACL" ]] ; then
-      echo "Lösche alte ACL-Dateien (${del_old_backup} Tage) aus ${SAVE_ACL%/*}…"
-      find "${SAVE_ACL%/*}" -maxdepth 1 -type f -mtime +"$del_old_backup" \
-        -name "*${TITLE}*" ! -name "${SAVE_ACL##*/}" -print0 \
+    if [[ -z "${SSH_LOG[*]}" ]] ; then
+      echo "Lösche alte Logdateien (${del_old_backup} Tage) aus ${LOG%/*}…"
+      find "${LOG%/*}" -maxdepth 1 -type f -mtime +"$del_old_backup" \
+        -name "*${TITLE}*" ! -name "${LOG##*/}" -print0 \
           | xargs --null rm --recursive --force --verbose
-    fi
+      if [[ -n "$SAVE_ACL" ]] ; then
+        echo "Lösche alte ACL-Dateien (${del_old_backup} Tage) aus ${SAVE_ACL%/*}…"
+        find "${SAVE_ACL%/*}" -maxdepth 1 -type f -mtime +"$del_old_backup" \
+          -name "*${TITLE}*" ! -name "${SAVE_ACL##*/}" -print0 \
+            | xargs --null rm --recursive --force --verbose
+      fi
+    fi  # -z SSH_LOG
   } &>> "$LOG" #2>> "$ERRLOG"
+[[ -n "${SSH_LOG[*]}" ]] && echo -e "$msgWRN Löschen von alten Log-Dateien auf SSH-Hosts ist deaktiviert!"
 }
 
 f_countdown_wait() {
@@ -244,7 +261,7 @@ f_monitor_free_space() {  # Prüfen ob auf dem Ziel genug Platz ist (Hintergrund
       echo -e "$msgWRN Auf dem Ziel (${TARGET}) sind nur $DF_FREE MegaByte frei! (MINFREE_BG=${MINFREE_BG})"
       { echo "Auf dem Ziel (${TARGET}) sind nur $DF_FREE MegaByte frei! (MINFREE_BG=${MINFREE_BG})"
         echo -e "\n\n => Die Sicherung (${TITLE}) wird abgebrochen!" ;} >> "$ERRLOG"
-      kill -TERM "$BORG_PID" 2>/dev/null
+      kill -TERM "$(pidof borg)" 2>/dev/null
       if pgrep --exact borg ; then
         echo "$msgERR Es laüft immer noch ein borg-Prozess! Versuche zu beenden…"
         killall --exact --verbose borg 2>> "$ERRLOG"
@@ -259,6 +276,30 @@ f_monitor_free_space() {  # Prüfen ob auf dem Ziel genug Platz ist (Hintergrund
 f_source_config() {  # Konfiguration laden
   # shellcheck source=MV_BorgBackup.conf.dist
   [[ -n "$1" ]] && { source "$1" || f_exit 5 $? ;}
+}
+
+f_borg_init() {
+local borg_repo="$1" do_init='false'
+if [[ "$borg_repo" =~ '@' ]] ; then  # ssh
+  [[ -n "${SSH_TARGET[3]}" ]] && pcmd=(-p "${SSH_TARGET[3]}")
+  if ! ssh "${SSH_TARGET[1]%:*}" "${pcmd[@]}" "[ -d ${SSH_TARGET[2]} ]" ; then
+    echo -e "$msgWRN Borg Repository nicht gefunden!${nc} (${borg_repo})" >&2
+    do_init='true'
+  fi
+else
+  if [[ ! -d "$R_TARGET" ]] ; then   # Das Repository muss vorhanden sein
+    echo -e "$msgWRN Borg Repository nicht gefunden!${nc} (${borg_repo})" >&2
+    do_init='true'
+  fi
+fi
+if [[ "$PROFIL" != 'customBak' && "$do_init" == 'true' ]] ; then
+  echo "Versuche das Repository anzulegen…"
+  export BORG_PASSPHRASE
+  if ! borg init "${BORG_INIT_OPT[@]}" "$borg_repo" &>>/dev/null ; then
+    echo -e "$msgERR Anlegen des Repostorys fehlgeschlagen!${nc}" ; f_exit 1
+  fi
+  borg info --verbose "$borg_repo" &>> "$LOG"  # Daten in das Log
+fi
 }
 
 # --- START ---
@@ -446,7 +487,7 @@ for PROFIL in "${P[@]}" ; do  # Anzeige der Einstellungen
   echo -e "\e[46m \e[0m Sicherungsmodus:\e[1m\t${MODE_TXT}${nc}"
   echo -e "\e[46m \e[0m Quellverzeichnis(se):\e[1m\t${SOURCE[*]}${nc}"
   echo -e "\e[46m \e[0m Zielverzeichnis:\e[1m\t${TARGET}${nc}"
-  echo -e "\e[46m \e[0m Log-Datei:\e[1m\t\t${LOG}${nc}"
+  echo -e "\e[46m \e[0m Log-Datei:\e[1m\t\t${SSH_LOG[0]:-${LOG}}${nc}"
   if [[ "$PROFIL" != 'customBak' ]] ; then
     echo -e "\e[46m $nc Ausschluss:"
     while read -r ; do
@@ -530,17 +571,8 @@ for PROFIL in "${P[@]}" ; do
   case $MODE in
     N) # Normale Sicherung (inkl. customBak)
       R_TARGET="${TARGET}/${FILES_DIR}"  # Ordner für das Repository
-      if [[ ! -d "$R_TARGET" ]] ; then   # Das Repository muss vorhanden sein
-        echo -e "$msgWRN Borg Repository nicht gefunden!\e[0m (${R_TARGET})" >&2
-        if [[ "$PROFIL" != 'customBak' ]] ; then
-          echo "Versuche das Repository anzulegen…"
-          export BORG_PASSPHRASE
-          if ! borg init "${BORG_INIT_OPT[@]}" "$R_TARGET" &>>/dev/null ; then
-            echo -e "$msgERR Anlegen des Repostorys fehlgeschlagen!${nc}" ; f_exit 1
-          fi
-          borg info --verbose "$R_TARGET" &>> "$LOG"  # Daten in das Log
-        fi
-      fi
+
+      f_borg_init "$R_TARGET"  # Prüfen, ob das Repository existiert und ggf. anlegen
 
       f_countdown_wait  # Countdown vor dem Start anzeigen
       if [[ $MINFREE -gt 0 || $MINFREE_BG -gt 0 ]] ; then
@@ -559,15 +591,13 @@ for PROFIL in "${P[@]}" ; do
         else
           export BORG_PASSPHRASE
           borg create "${BORG_CREATE_OPT[@]}" --exclude-from="$EXFROM" "${R_TARGET}::${ARCHIV}" "${SOURCE[@]}" &>> "$LOG"
-          BORG_PID=$!  # PID von borg
         fi
         RC=$? ; [[ $RC -ne 0 ]] && { BORGRC+=("$RC") ; BORGPROF+=("$TITLE") ;}  # Profilname und Fehlercode merken
         [[ -n "$MFS_PID" ]] && f_mfs_kill  # Hintergrundüberwachung beenden!
         if [[ -e "${TMPDIR}/.stopflag" ]] ; then
           FINISHEDTEXT='abgebrochen!'  # Platte voll!
         else  # Alte Daten nur löschen wenn nicht abgebrochen wurde!
-          # Funktion zum Löschen alter Sicherungen aufrufen
-          f_del_old_backup "$R_TARGET"
+          f_del_old_backup "$R_TARGET"  # Funktion zum Löschen alter Sicherungen aufrufen
         fi  # -e .stopflag
       fi  # SKIP_FULL
     ;;
@@ -599,16 +629,23 @@ for PROFIL in "${P[@]}" ; do
   [[ ${RC:-0} -ne 0 ]] && ERRTEXT="\e[91mmit Fehler ($RC) \e[0;1m"
   echo -e -n "\a\n\n${msgINF} \e[1mProfil \"${TITLE}\" wurde ${ERRTEXT}${FINISHEDTEXT:=abgeschlossen}"
   printf ' (%(%x %X)T)\n' -1  # Datum und Zeit
-  echo -e "  Weitere Informationen sind in der Datei:\n  \"${LOG}\" gespeichert.\n"
+  echo -e "  Weitere Informationen sind in der Datei:\n  \"${SSH_LOG[0]:-${LOG}}\" gespeichert.\n"
   if [[ -s "$ERRLOG" ]] ; then  # Existiert und ist nicht Leer
     if [[ $(stat -c %Y "$ERRLOG") -gt $(stat -c %Y "$TMPDIR") ]] ; then  # Fehler-Log merken, wenn neuer als "$TMPDIR"
       ERRLOGS+=("$ERRLOG")
-      echo -e "$msgINF Fehlermeldungen wurden in der Datei:\n  \"${ERRLOG}\" gespeichert.\n"
+      echo -e "$msgINF Fehlermeldungen wurden in der Datei:\n  \"${SSH_ERRLOG[0]:-${ERRLOG}}\" gespeichert.\n"
     fi
   else
     [[ -e "$ERRLOG" ]] && rm "$ERRLOG" &>/dev/null  # Leeres Log löschen
   fi
   unset -v 'RC' 'ERRTEXT'  # $RC und $ERRTEXT zurücksetzen
+  # Falls nötig Log-Dateien zum SSH-Host kopieren
+  if [[ -n "${SSH_LOG[*]}" ]] ; then
+    #scp -P 2222 file.txt user@remote.host:/some/remote/directory
+    [[ -e "$LOG" ]] && scp -q -P "${SSH_LOG[3]:-22}" "$LOG" "${SSH_LOG[1]%:*}:${SSH_LOG[2]}"
+    [[ -e "$ERRLOG" ]] && scp -q -P "${SSH_ERRLOG[3]:-22}" "$ERRLOG" "${SSH_ERRLOG[1]%:*}:${SSH_ERRLOG[2]}"
+    echo -e "$msgINF Log's wurden nach ${SSH_LOG[1]%:*}:${SSH_LOG[2]%/*} kopiert"
+  fi
 done # for PROFIL
 SCRIPT_TIMING[1]=$SECONDS  # Zeit nach der Sicherung mit borg/tar/getfacl (Sekunden)
 
