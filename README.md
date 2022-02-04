@@ -19,7 +19,6 @@ Zusätzliche Funktionen sind unter Anderem:
 - eMail-Bericht mit Angaben zu Fehlern, Belegung der Sicherungen und der Sicherungsziele (Auflistung abschaltbar)
 - Sicherungsziel kann Profilabhängig definiert werden (mount[])
 - Verschiedene Möglichkeiten den freien Platz auf dem Ziellaufwerk zu überwachen
-- Dateizugriffskontrollisten könenn zusätzlich gesichert werden. Praktisch, wenn das Sicherungsziel keine Zugriffsrechte unterstützt.
 
 ![help](https://user-images.githubusercontent.com/2804301/151806725-1e939d46-3dff-4184-856f-1b4d293d1245.png)
 
@@ -38,7 +37,6 @@ Benötigt werden (U. a. Konfigurationsabhängig):
 - curlftpfs (Sicherung von FTP)
 - sendmail, uuencode, mpack, sendEmail, mail oder email (Für eMailversand; je nach Konfiguration)
 - tar (Zusätzliche Sicherung und um gepackte Log-Dateien per eMail zu senden)
-- getfacl (Dateizugriffskontrollisten (ACLS) sichern)
 - ...
 
 
