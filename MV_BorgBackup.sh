@@ -133,9 +133,8 @@ f_settings() {
         IFS=';' read -r -a SOURCE <<< "${source[i]}"  ; TARGET="${target[i]}"
         FTPSRC="${ftpsrc[i]}" ; FTPMNT="${ftpmnt[i]}"
         ARCHIV="${archiv[i]}" ; BORG_PASSPHRASE="${passphrase[i]}"
-        LOG="${log[i]}"       ; SAVE_ACL="${save_acl[i]}"
-        EXFROM="${exfrom[i]}" ; MINFREE="${minfree[i]}" ; SKIP_FULL="${skip_full[i]}"
-        MINFREE_BG="${minfree_bg[i]}"
+        LOG="${log[i]}"       ; EXFROM="${exfrom[i]}" ; MINFREE="${minfree[i]}"
+        SKIP_FULL="${skip_full[i]}" ; MINFREE_BG="${minfree_bg[i]}"
         # Erforderliche Werte prüfen, und ggf. Vorgaben setzen
         if [[ -z "${SOURCE[*]}" || -z "$TARGET" ]] ; then
           echo -e "$msgERR Quelle und/oder Ziel sind nicht konfiguriert!${nc}" >&2
@@ -201,12 +200,6 @@ f_del_old_backup() {  # Archive älter als $DEL_OLD_BACKUP Tage löschen
       find "${LOG%/*}" -maxdepth 1 -type f -mtime +"$del_old_backup" \
         -name "*${TITLE}*" ! -name "${LOG##*/}" -print0 \
           | xargs --null rm --recursive --force --verbose
-      if [[ -n "$SAVE_ACL" ]] ; then
-        echo "Lösche alte ACL-Dateien (${del_old_backup} Tage) aus ${SAVE_ACL%/*}…"
-        find "${SAVE_ACL%/*}" -maxdepth 1 -type f -mtime +"$del_old_backup" \
-          -name "*${TITLE}*" ! -name "${SAVE_ACL##*/}" -print0 \
-            | xargs --null rm --recursive --force --verbose
-      fi
     fi  # -z SSH_LOG
   } &>> "$LOG" #2>> "$ERRLOG"
 [[ -n "${SSH_LOG[*]}" ]] && echo -e "$msgWRN Löschen von alten Log-Dateien auf SSH-Hosts ist deaktiviert!"
@@ -510,7 +503,6 @@ for PROFIL in "${P[@]}" ; do  # Anzeige der Einstellungen
       ;;
     esac
   fi
-  [[ -n "$SAVE_ACL" ]] && echo -e "\e[46m $nc Datei-Zugriffskontrollisten:\e[1m ${SAVE_ACL}${nc}"
 done
 
 # Sind die benötigen Programme installiert?
@@ -606,19 +598,6 @@ for PROFIL in "${P[@]}" ; do
       f_exit 1
     ;;
   esac
-
-  ### Sicherung der Datei-Zugriffskontrollisten (ACLs) ###
-  if [[ -n "$SAVE_ACL" ]] ; then
-  echo "Starte Sicherung der Datei-Zugriffskontrollisten (ACLs) nach: ${SAVE_ACL}" >> "$LOG"
-  echo -e "$msgINF Starte Sicherung der Datei-Zugriffskontrollisten (ACLs) nach:\n  \"${SAVE_ACL}\""
-    if type getfacl &>/dev/null ; then
-      for dir in "${SOURCE[@]}" ; do
-        getfacl --recursive --absolute-names "$dir" > "${SAVE_ACL%.*}-{dir}.acl" 2>> "$ERRLOG"
-      done
-    else
-      echo -e "$msgERR \"getfacl\" zum Sichern der Datei-Zugriffskontrollisten nicht gefunden!${nc}" >&2
-    fi
-  fi
 
   # Log-Datei, Ziel und Name des Profils merken für Mail-Versand
   [[ -n "$MAILADRESS" ]] && { LOGFILES+=("$LOG") ; TARGETS+=("$TARGET") ; USEDPROFILES+=("$TITLE") ;}

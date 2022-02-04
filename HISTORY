@@ -14,3 +14,4 @@ Der Betrag kann frei gewählt werden. Vorschlag: 2 EUR
 2022.02.04
   - Sicherung auf SSH-Host ist nun möglich. Löschen von alten Logdateien auf dem SSH-Host
     wird (noch) nicht unterstützt
+  - Sicherung von Dateizugriffskontrollisten (ACL) entfernt
