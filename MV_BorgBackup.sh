@@ -11,7 +11,7 @@
 # => http://paypal.me/SteBlo <= Der Betrag kann frei gewählt werden.                    #
 #                                                                                       #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-VERSION=220204
+VERSION=220205
 
 # Dieses Skript sichert / synchronisiert Verzeichnisse mit borg.
 # Dabei können beliebig viele Profile konfiguriert oder die Pfade direkt an das Skript übergeben werden.
@@ -105,7 +105,7 @@ f_help() {
   echo -e '  \e[1;34m-c\e[0m \e[1;36mBeispiel.conf\e[0m Konfigurationsdatei angeben (Pfad und Name)'
   echo -e '  \e[1;34m-e\e[0m \e[1;36mmy@email.de\e[0m   Sendet eMail inkl. angehängten Log(s)'
   echo -e '  \e[1;34m-f\e[0m    eMail nur senden, wenn Fehler auftreten (-e muss angegeben werden)'
-  echo -e '  \e[1;34m-d\e[0m \e[1;36mx\e[0m  Logdateien die älter als x Tage sind löschen'
+  echo -e '  \e[1;34m-d\e[0m \e[1;36mx\e[0m  Logdateien die älter als x Tage sind löschen (Vorgabe 30)'
   echo -e '  \e[1;34m-s\e[0m    Nach Beendigung automatisch herunterfahren (benötigt u. U. Root-Rechte)'
   echo -e '  \e[1;34m-h\e[0m    Hilfe anzeigen'
   echo
@@ -156,6 +156,7 @@ f_settings() {
         ERRLOG="${LOG%.*}.err.log"                 # Fehlerlog im Logverzeichnis der Sicherung
         : "${FILES_DIR:=borg_repository}"          # Vorgabe für Sicherungsordner
         : "${ARCHIV:="{now:%Y-%m-%d_%H:%M}"}"      # Vorgabe für Archivname (Borg)
+        ARCHIV="${TITLE}_${ARCHIV}"                # Name des Provils als Prefix im Archiv
         # Bei mehreren Profilen müssen die Werte erst gesichert und später wieder zurückgesetzt werden
         [[ -n "${mount[i]}" ]] && { _MOUNT="${MOUNT:-0}" ; MOUNT="${mount[i]}" ;}  # Eigener Einhängepunkt
         unset -v 'SSH_TARGET' 'SSH_LOG'
@@ -170,7 +171,7 @@ f_settings() {
           SSH_LOG[1]="${SSH_LOG[0]%%/*}" ; SSH_ERRLOG[1]="${SSH_ERRLOG[0]%%/*}"  # Pfade abschneiden (user@host[:port])
           SSH_LOG[2]="/${SSH_LOG[0]#*/}" ; SSH_ERRLOG[2]="/${SSH_ERRLOG[0]#*/}"  # Pfad zum Log
           SSH_LOG[3]="${SSH_LOG[1]#*:}" ; SSH_ERRLOG[3]="${SSH_ERRLOG[1]#*:}"    # Port
-		  LOG="${TMPDIR}/${LOG##*/}" ; ERRLOG="${TMPDIR}/${ERRLOG##*/}"
+		      LOG="${TMPDIR}/${LOG##*/}" ; ERRLOG="${TMPDIR}/${ERRLOG##*/}"
         fi
         case "${MODE^^}" in  # ${VAR^^} ergibt Großbuchstaben!
           *) MODE='N' ; MODE_TXT='Normal'  # Vorgabe: Normaler Modus
@@ -190,19 +191,22 @@ f_settings() {
 f_del_old_backup() {  # Archive älter als $DEL_OLD_BACKUP Tage löschen
   local dt del_old_backup="${DEL_OLD_BACKUP:-30}"
   printf -v dt '%(%F %R.%S)T' -1
-  echo "Lösche alte Sicherungen aus ${1}…"
-  { echo -e "${dt}: Lösche alte Sicherungen aus ${1}…\n"
+  echo -e "$msgINF Lösche alte Sicherungen aus ${1}…"
+  { echo -e "[${dt}] Lösche alte Sicherungen aus ${1}…\n"
     export BORG_PASSPHRASE
     borg prune "${BORG_PRUNE_OPT[@]}" "$1" "${BORG_PRUNE_OPT_KEEP[@]}"
     # Logdatei(en) löschen (Wenn $TITLE im Namen)
-    if [[ -z "${SSH_LOG[*]}" ]] ; then
+    if [[ -n "${SSH_LOG[*]}" ]] ; then
+      echo "Lösche alte Logdateien (${del_old_backup} Tage) aus ${SSH_LOG[2]%/*}…"
+      ssh -p "${SSH_LOG[3]:-22}" "${SSH_LOG[1]%:*}" \
+        "find ${SSH_LOG[2]%/*} -maxdepth 1 -type f -mtime +${del_old_backup} \
+          -name *${TITLE}* ! -name ${SSH_LOG[2]##*/} -delete -print"
+    else
       echo "Lösche alte Logdateien (${del_old_backup} Tage) aus ${LOG%/*}…"
       find "${LOG%/*}" -maxdepth 1 -type f -mtime +"$del_old_backup" \
-        -name "*${TITLE}*" ! -name "${LOG##*/}" -print0 \
-          | xargs --null rm --recursive --force --verbose
-    fi  # -z SSH_LOG
+        -name "*${TITLE}*" ! -name "${LOG##*/}" -delete -print
+    fi  # -n SSH_LOG
   } &>> "$LOG" #2>> "$ERRLOG"
-[[ -n "${SSH_LOG[*]}" ]] && echo -e "$msgWRN Löschen von alten Log-Dateien auf SSH-Hosts ist deaktiviert!"
 }
 
 f_countdown_wait() {
@@ -224,7 +228,7 @@ f_check_free_space() {  # Prüfen ob auf dem Ziel genug Platz ist
     mapfile -t < <(df -B M "$TARGET")  # Ausgabe von df (in Megabyte) in Array (Zwei Zeilen)
     read -r -a DF_LINE <<< "${MAPFILE[1]}" ; DF_FREE="${DF_LINE[3]%M}"  # Drittes Element ist der freie Platz (M)
     if [[ $DF_FREE -lt $MINFREE ]] ; then
-      echo -e "msgWRN Auf dem Ziel (${TARGET}) sind nur $DF_FREE MegaByte frei! (${MFTEXT}=${MINFREE})"
+      echo -e "$msgWRN Auf dem Ziel (${TARGET}) sind nur $DF_FREE MegaByte frei! (${MFTEXT}=${MINFREE})"
       echo "Auf dem Ziel (${TARGET}) sind nur $DF_FREE MegaByte frei! (${MFTEXT}=${MINFREE})" >> "$ERRLOG"
       if [[ -z "$SKIP_FULL" ]] ; then  # In der Konfig definiert
         echo -e "\nDie Sicherung (${TITLE}) ist möglicherweise unvollständig!" >> "$ERRLOG"
@@ -274,8 +278,7 @@ f_source_config() {  # Konfiguration laden
 f_borg_init() {
 local borg_repo="$1" do_init='false'
 if [[ "$borg_repo" =~ '@' ]] ; then  # ssh
-  [[ -n "${SSH_TARGET[3]}" ]] && pcmd=(-p "${SSH_TARGET[3]}")
-  if ! ssh "${SSH_TARGET[1]%:*}" "${pcmd[@]}" "[ -d ${SSH_TARGET[2]} ]" ; then
+  if ! ssh "${SSH_TARGET[1]%:*}" -p "${SSH_TARGET[3]:-22}" "[ -d ${SSH_TARGET[2]} ]" ; then
     echo -e "$msgWRN Borg Repository nicht gefunden!${nc} (${borg_repo})" >&2
     do_init='true'
   fi
@@ -312,7 +315,7 @@ if [[ $EUID -eq 0 ]] ; then  # Nur wenn 'root'
   PIDFILE="/var/run/${SELF_NAME%.*}.pid"
   if [[ -f "$PIDFILE" ]] ; then  # PID-Datei existiert
     PID="$(< "$PIDFILE")"        # PID einlesen
-    if ps --pid "$PID" &> /dev/null ; then  # Skript läuft schon!
+    if ps --pid "$PID" &>/dev/null ; then  # Skript läuft schon!
       echo -e "$msgERR Das Skript läuft bereits!\e[0m (PID: $PID)" >&2
       f_exit 4                   # Beenden aber PID-Datei nicht löschen
     else  # Prozess nicht gefunden. PID-Datei überschreiben
@@ -563,10 +566,8 @@ for PROFIL in "${P[@]}" ; do
   case $MODE in
     N) # Normale Sicherung (inkl. customBak)
       R_TARGET="${TARGET}/${FILES_DIR}"  # Ordner für das Repository
-
       f_borg_init "$R_TARGET"  # Prüfen, ob das Repository existiert und ggf. anlegen
-
-      f_countdown_wait  # Countdown vor dem Start anzeigen
+      f_countdown_wait         # Countdown vor dem Start anzeigen
       if [[ $MINFREE -gt 0 || $MINFREE_BG -gt 0 ]] ; then
         f_check_free_space  # Platz auf dem Ziel überprüfen (MINFREE oder MINFREE_BG)
       fi
@@ -574,7 +575,7 @@ for PROFIL in "${P[@]}" ; do
       # Keine Sicherung, wenn zu wenig Platz und "SKIP_FULL" gesetzt ist
       if [[ -z "$SKIP_FULL" ]] ; then
         # Sicherung mit borg starten
-        echo "==> $dt - $SELF_NAME [#${VERSION}] - Start:" >> "$LOG"  # Sicher stellen, dass ein Log existiert
+        echo "==> [${dt}] - $SELF_NAME [#${VERSION}] - Start:" >> "$LOG"  # Sicher stellen, dass ein Log existiert
         echo "borg create ${BORG_CREATE_OPT[*]} --exclude-from=${EXFROM:-'Nicht_gesetzt'} ${R_TARGET}::${ARCHIV} ${SOURCE[*]}" >> "$LOG"
         echo -e "$msgINF Starte Sicherung (borg)…"
         if [[ "$PROFIL" == 'customBak' ]] ; then  # Verzeichnisse wurden manuell übergeben

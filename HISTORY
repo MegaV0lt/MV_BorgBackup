@@ -15,3 +15,7 @@ Der Betrag kann frei gewählt werden. Vorschlag: 2 EUR
   - Sicherung auf SSH-Host ist nun möglich. Löschen von alten Logdateien auf dem SSH-Host
     wird (noch) nicht unterstützt
   - Sicherung von Dateizugriffskontrollisten (ACL) entfernt
+2022.02.05
+  - Löschen von alten Log-Dateien über SSH 
+  - Name des Profils als Prefic für das Archiv
+
