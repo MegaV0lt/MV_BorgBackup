@@ -30,7 +30,8 @@ fi
 SELF="$(readlink /proc/$$/fd/255)" || SELF="$0"  # Eigener Pfad (besseres $0)
 SELF_NAME="${SELF##*/}"                          # skript.sh
 TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/${SELF_NAME%.*}.XXXX")"   # Ordner für temporäre Dateien
-declare -a _BORG_CREATE_OPT ERRLOGS LOGFILES BORGRC BORGPROF UNMOUNT SSH_TARGET  # Einige Array's
+declare -a BORG_CREATE_OPT BORGPROF BORGRC ERRLOGS LOGFILES
+declare -a SSH_LOG SSH_TARGET UNMOUNT           # Einige Array's
 declare -A _arg _target
 msgERR='\e[1;41m FEHLER! \e[0;1m' ; nc="\e[0m"  # Anzeige "FEHLER!" ; Reset der Farben
 msgINF='\e[42m \e[0m' ; msgWRN='\e[103m \e[0m'  # " " mit grünem/gelben Hintergrund
@@ -87,38 +88,38 @@ f_remove_slash() {  # "/" am Ende entfernen. $1=Variablenname ohne $
 
 # Wird in der Konsole angezeigt, wenn eine Option nicht angegeben oder definiert wurde
 f_help() {
-  echo -e "Aufruf: \e[1m$0 \e[34m-p\e[0m \e[1;36mARGUMENT\e[0m [\e[1;34m-p\e[0m \e[1;36mARGUMENT\e[0m]"
-  echo -e "        \e[1m$0 \e[34m-m\e[0m \e[1;36mQUELLE(n)\e[0m \e[1;36mZIEL\e[0m"
+  echo -e "Aufruf: \e[1m$0 \e[34m-p${nc} \e[1;36mARGUMENT${nc} [\e[1;34m-p${nc} \e[1;36mARGUMENT${nc}]"
+  echo -e "        \e[1m$0 \e[34m-m${nc} \e[1;36mQUELLE(n)${nc} \e[1;36mZIEL${nc}"
   echo
-  echo -e '\e[37;100m Erforderlich \e[0m'
+  echo -e "\e[37;100m Erforderlich $nc"
   if [[ -n "$CONFLOADED" ]] ; then
     for i in "${!arg[@]}" ; do
-      echo -e "  \e[1;34m-p\e[0m \e[1;36m${arg[i]}\e[0m\tProfil \"${title[i]}\""
+      echo -e "  \e[1;34m-p${nc} \e[1;36m${arg[i]}${nc}\tProfil \"${title[i]}\""
     done
   else
-    echo -e "  \e[1;34m-p\e[0m \e[1;36mx\e[0m\tProfil (arg[nr]=)"
+    echo -e "  \e[1;34m-p${nc} \e[1;36mx${nc}\tProfil (arg[nr]=)"
   fi  # CONFLOADED
-  echo -e ' oder\n  \e[1;34m-a\e[0m\tAlle Sicherungs-Profile'
-  echo -e ' oder\n  \e[1;34m-m\e[0m\tVerzeichnisse manuell angeben'
+  echo -e " oder\n  \e[1;34m-a${nc}\tAlle Sicherungs-Profile"
+  echo -e " oder\n  \e[1;34m-m${nc}\tVerzeichnisse manuell angeben"
   echo
-  echo -e '\e[37;100m Optional \e[0m'
-  echo -e '  \e[1;34m-c\e[0m \e[1;36mBeispiel.conf\e[0m Konfigurationsdatei angeben (Pfad und Name)'
-  echo -e '  \e[1;34m-e\e[0m \e[1;36mmy@email.de\e[0m   Sendet eMail inkl. angehängten Log(s)'
-  echo -e '  \e[1;34m-f\e[0m    eMail nur senden, wenn Fehler auftreten (-e muss angegeben werden)'
-  echo -e '  \e[1;34m-d\e[0m \e[1;36mx\e[0m  Logdateien die älter als x Tage sind löschen (Vorgabe 30)'
-  echo -e '  \e[1;34m-s\e[0m    Nach Beendigung automatisch herunterfahren (benötigt u. U. Root-Rechte)'
-  echo -e '  \e[1;34m-h\e[0m    Hilfe anzeigen'
+  echo -e "\e[37;100m Optional $nc"
+  echo -e "  \e[1;34m-c${nc} \e[1;36mBeispiel.conf${nc} Konfigurationsdatei angeben (Pfad und Name)"
+  echo -e "  \e[1;34m-e${nc} \e[1;36mmy@email.de${nc}   Sendet eMail inkl. angehängten Log(s)"
+  echo -e "  \e[1;34m-f${nc}    eMail nur senden, wenn Fehler auftreten (-e muss angegeben werden)"
+  echo -e "  \e[1;34m-d${nc} \e[1;36mx${nc}  Logdateien die älter als x Tage sind löschen (Vorgabe 30)"
+  echo -e "  \e[1;34m-s${nc}    Nach Beendigung automatisch herunterfahren (benötigt u. U. Root-Rechte)"
+  echo -e "  \e[1;34m-h${nc}    Hilfe anzeigen"
   echo
-  echo -e '\e[37;100m Beispiele \e[0m'
-  echo -e "  \e[32mProfil \"${title[2]}\"\e[0m starten und den Computer anschließend \e[31mherunterfahren\e[0m:"
-  echo -e "\t$0 \e[32m-p${arg[2]}\e[0m \e[31m-s\e[0m\n"
-  echo -e '  \e[33m"/tmp/Quelle1/"\e[0m und \e[35m"/Leer zeichen2/"\e[0m in \e[36m"/media/extern"\e[0m sichern;\n  anschließend \e[31mherunterfahren\e[0m:'
-  echo -e "\t$0 \e[31m-s\e[0;4mm\e[0m \e[33m/tmp/Quelle1\e[0m \e[4m\"\e[0;35m/Leer zeichen2\e[0;4m\"\e[0m \e[36m/media/extern\e[0m"
+  echo -e "\e[37;100m Beispiele ${nc}"
+  echo -e "  \e[32mProfil \"${title[2]}\"${nc} starten und den Computer anschließend \e[31mherunterfahren${nc}:"
+  echo -e "\t$0 \e[32m-p${arg[2]}${nc} \e[31m-s${nc}\n"
+  echo -e "  \e[33m\"/tmp/Quelle1/\"${nc} und \e[35m\"/Leer zeichen2/\"${nc} in \e[36m\"/media/extern\"${nc} sichern;\n  anschließend \e[31mherunterfahren${nc}:"
+  echo -e "\t$0 \e[31m-s\e[0;4mm${nc} \e[33m/tmp/Quelle1${nc} \e[4m\"\e[0;35m/Leer zeichen2\e[0;4m\"${nc} \e[36m/media/extern${nc}"
   f_exit 1
 }
 
 f_settings() {
-  local notset='\e[1;41m -LEER- \e[0m'  # Anzeige, wenn nicht gesetzt
+  local notset="\e[1;41m -LEER- $nc"  # Anzeige, wenn nicht gesetzt
   if [[ "$PROFIL" != 'customBak' ]] ; then
     # Benötigte Werte aus dem Array (.conf) holen
     for i in "${!arg[@]}" ; do  # Anzahl der vorhandenen Profile ermitteln
@@ -223,22 +224,22 @@ f_countdown_wait() {
 }
 
 f_check_free_space() {  # Prüfen ob auf dem Ziel genug Platz ist
-  local DF_LINE DF_FREE MFTEXT='MINFREE'
+  local df_line df_free
   if [[ $MINFREE -gt 0 ]] ; then  # Aus *.conf
     mapfile -t < <(df -B M "$TARGET")  # Ausgabe von df (in Megabyte) in Array (Zwei Zeilen)
-    read -r -a DF_LINE <<< "${MAPFILE[1]}" ; DF_FREE="${DF_LINE[3]%M}"  # Drittes Element ist der freie Platz (M)
-    if [[ $DF_FREE -lt $MINFREE ]] ; then
-      echo -e "$msgWRN Auf dem Ziel (${TARGET}) sind nur $DF_FREE MegaByte frei! (${MFTEXT}=${MINFREE})"
-      echo "Auf dem Ziel (${TARGET}) sind nur $DF_FREE MegaByte frei! (${MFTEXT}=${MINFREE})" >> "$ERRLOG"
+    read -r -a df_line <<< "${MAPFILE[1]}" ; df_free="${df_line[3]%M}"  # Drittes Element ist der freie Platz (M)
+    if [[ $df_free -lt $MINFREE ]] ; then
+      echo -e "$msgWRN Auf dem Ziel (${TARGET}) sind nur $df_free MegaByte frei! (MINFREE=${MINFREE})"
+      echo "Auf dem Ziel (${TARGET}) sind nur $df_free MegaByte frei! (MINFREE=${MINFREE})" >> "$ERRLOG"
       if [[ -z "$SKIP_FULL" ]] ; then  # In der Konfig definiert
-        echo -e "\nDie Sicherung (${TITLE}) ist möglicherweise unvollständig!" >> "$ERRLOG"
+        echo -e "\nDie Sicherung (${TITLE}) ist vermutlich unvollständig!" >> "$ERRLOG"
         echo -e 'Bitte überprüfen Sie auch die Einträge in den Log-Dateien!\n' >> "$ERRLOG"
       else
         echo -e "\n\n => Die Sicherung (${TITLE}) wird nicht durchgeführt!" >> "$ERRLOG"
         FINISHEDTEXT='abgebrochen!'  # Text wird am Ende ausgegeben
       fi
       unset -v 'SKIP_FULL'  # Genug Platz! Variable löschen, falls gesetzt
-    fi  # DF_FREE
+    fi  # df_free
   elif [[ $MINFREE_BG -gt 0 ]] ; then  # Prüfung im Hintergrund
     unset -v 'SKIP_FULL'  # Löschen, falls gesetzt
     echo -e -n "$msgINF Starte Hintergrundüberwachung…"
@@ -248,15 +249,15 @@ f_check_free_space() {  # Prüfen ob auf dem Ziel genug Platz ist
 }
 
 f_monitor_free_space() {  # Prüfen ob auf dem Ziel genug Platz ist (Hintergrundprozess [&])
-  local DF_LINE DF_FREE
+  local df_line df_free
   while true ; do
     mapfile -t < <(df -B M "$TARGET")  # Ausgabe von df (in Megabyte) in Array (Zwei Zeilen)
-    read -r -a DF_LINE <<< "${MAPFILE[1]}" ; DF_FREE="${DF_LINE[3]%M}"  # Drittes Element ist der freie Platz (M)
-    # echo "-> Auf dem Ziel (${TARGET}) sind $DF_FREE MegaByte frei! (MINFREE_BG=${MINFREE_BG})"
-    if [[ $DF_FREE -lt $MINFREE_BG ]] ; then
+    read -r -a df_line <<< "${MAPFILE[1]}" ; df_free="${df_line[3]%M}"  # Drittes Element ist der freie Platz (M)
+    # echo "-> Auf dem Ziel (${TARGET}) sind $df_free MegaByte frei! (MINFREE_BG=${MINFREE_BG})"
+    if [[ $df_free -lt $MINFREE_BG ]] ; then
       touch "${TMPDIR}/.stopflag"
-      echo -e "$msgWRN Auf dem Ziel (${TARGET}) sind nur $DF_FREE MegaByte frei! (MINFREE_BG=${MINFREE_BG})"
-      { echo "Auf dem Ziel (${TARGET}) sind nur $DF_FREE MegaByte frei! (MINFREE_BG=${MINFREE_BG})"
+      echo -e "$msgWRN Auf dem Ziel (${TARGET}) sind nur $df_free MegaByte frei! (MINFREE_BG=${MINFREE_BG})"
+      { echo "Auf dem Ziel (${TARGET}) sind nur $df_free MegaByte frei! (MINFREE_BG=${MINFREE_BG})"
         echo -e "\n\n => Die Sicherung (${TITLE}) wird abgebrochen!" ;} >> "$ERRLOG"
       kill -TERM "$(pidof borg)" 2>/dev/null
       if pgrep --exact borg ; then
@@ -279,14 +280,12 @@ f_borg_init() {
 local borg_repo="$1" do_init='false'
 if [[ "$borg_repo" =~ '@' ]] ; then  # ssh
   if ! ssh "${SSH_TARGET[1]%:*}" -p "${SSH_TARGET[3]:-22}" "[ -d ${SSH_TARGET[2]} ]" ; then
-    echo -e "$msgWRN Borg Repository nicht gefunden!${nc} (${borg_repo})" >&2
+    echo -e "$msgWRN Borg Repository nicht gefunden! (${borg_repo})" >&2
     do_init='true'
   fi
-else
-  if [[ ! -d "$R_TARGET" ]] ; then   # Das Repository muss vorhanden sein
-    echo -e "$msgWRN Borg Repository nicht gefunden!${nc} (${borg_repo})" >&2
+elif [[ ! -d "$R_TARGET" ]] ; then   # Das Repository muss vorhanden sein
+    echo -e "$msgWRN Borg Repository nicht gefunden! (${borg_repo})" >&2
     do_init='true'
-  fi
 fi
 if [[ "$PROFIL" != 'customBak' && "$do_init" == 'true' ]] ; then
   echo "Versuche das Repository anzulegen…"
@@ -471,19 +470,19 @@ for PROFIL in "${P[@]}" ; do  # Anzeige der Einstellungen
 
   # Wurden der Option -p gültige Argument zugewiesen?
   if [[ "$PROFIL" != "$ARG" && "$PROFIL" != 'customBak' ]] ; then
-    notset='\e[1;41m -LEER- \e[0m'  # Anzeige, wenn nicht gesetzt
-    echo -e "$msgERR Option -p wurde nicht korrekt definiert!\e[0m\n" >&2
+    notset="\e[1;41m -LEER- $nc"  # Anzeige, wenn nicht gesetzt
+    echo -e "$msgERR Option -p wurde nicht korrekt definiert!${nc}\n" >&2
     echo -e " Profil:        \"${TITLE:-$notset}\"\n Parameter:     \"${ARG:-$notset}\""
     echo -e " Variable PROFIL: \"${PROFIL:-$notset}\"" ; f_exit 1
   fi
 
   # Konfiguration zu allen gewählten Profilen anzeigen
   # Länge des Strings [80] plus alle Steuerzeichen [14] (ohne \)
-  printf '%-94b' "\n\e[30;46m  Konfiguration von:    \e[97m${TITLE} $msgAUTO" ; printf '%b\n' '\e[0m'
-  echo -e "\e[46m \e[0m Sicherungsmodus:\e[1m\t${MODE_TXT}${nc}"
-  echo -e "\e[46m \e[0m Quellverzeichnis(se):\e[1m\t${SOURCE[*]}${nc}"
-  echo -e "\e[46m \e[0m Zielverzeichnis:\e[1m\t${TARGET}${nc}"
-  echo -e "\e[46m \e[0m Log-Datei:\e[1m\t\t${SSH_LOG[0]:-${LOG}}${nc}"
+  printf '%-94b' "\n\e[30;46m  Konfiguration von:    \e[97m${TITLE} $msgAUTO" ; printf '%b\n' "$nc"
+  echo -e "\e[46m $nc Sicherungsmodus:\e[1m\t${MODE_TXT}${nc}"
+  echo -e "\e[46m $nc Quellverzeichnis(se):\e[1m\t${SOURCE[*]}${nc}"
+  echo -e "\e[46m $nc Zielverzeichnis:\e[1m\t${TARGET}${nc}"
+  echo -e "\e[46m $nc Log-Datei:\e[1m\t\t${SSH_LOG[0]:-${LOG}}${nc}"
   if [[ "$PROFIL" != 'customBak' ]] ; then
     echo -e "\e[46m $nc Ausschluss:"
     while read -r ; do
@@ -541,7 +540,7 @@ for PROFIL in "${P[@]}" ; do
       if ! mountpoint --quiet "$MOUNT" ; then
         echo -e -n "$msgINF Versuche Sicherungsziel (${MOUNT}) einzuhängen…"
         mount "$MOUNT" &>/dev/null \
-          || { echo -e "\n$msgERR Das Sicherungsziel konnte nicht eingebunden werden! (RC: $?)\e[0m (\"${MOUNT}\")" >&2 ; f_exit 1 ;}
+          || { echo -e "\n$msgERR Das Sicherungsziel konnte nicht eingebunden werden! (RC: $?)${nc} (\"${MOUNT}\")" >&2 ; f_exit 1 ;}
         echo -e "OK.\nDas Sicherungsziel (\"${MOUNT}\") wurde erfolgreich eingehängt."
         UNMOUNT+=("$MOUNT")  # Nach Sicherung wieder aushängen (Einhängepunkt merken)
       fi  # ! mountpoint
@@ -552,7 +551,7 @@ for PROFIL in "${P[@]}" ; do
         echo -e -n "$msgINF Versuche FTP-Quelle (${FTPSRC}) unter \"${FTPMNT}\" einzuhängen…"
         curlftpfs "$FTPSRC" "$FTPMNT" &>/dev/null    # FTP einhängen
         grep --quiet "$FTPMNT" /proc/mounts \
-          || { echo -e "\n$msgERR Die FTP-Quelle konnte nicht eingebunden werden! (RC: $?)\e[0m (\"${FTPMNT}\")" >&2 ; f_exit 1 ;}
+          || { echo -e "\n$msgERR Die FTP-Quelle konnte nicht eingebunden werden! (RC: $?)${nc} (\"${FTPMNT}\")" >&2 ; f_exit 1 ;}
         echo -e "OK.\nDie FTP-Quelle (${FTPSRC}) wurde erfolgreich unter (\"${FTPMNT}\") eingehängt."
         UMOUNT_FTP=1  # Nach Sicherung wieder aushängen
       fi  # ! mountpoint

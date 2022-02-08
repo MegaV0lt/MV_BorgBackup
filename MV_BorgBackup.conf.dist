@@ -119,7 +119,7 @@ POST_ACTION=''
 
 # Bezeichnung des Profils; wird u.a. in der Hilfe angezeigt. Bitte nur POSIX
 # kompatible Zeichen verwenden: A–Z a–z 0–9 . _ -
-#title[nr]='Meine Sicherung'
+#title[nr]='Meine_Sicherung'
 
 # Parameter, mit dem das jeweilige Profil gestartet wird (-p m). Muss eindeutig sein!
 # Erlaubt sind a-z. Nur einen Buchstaben verwenden!
@@ -220,7 +220,6 @@ passphrase[nr]='P455w0rd'     # Borg Passphrase für das Archiv
  skip_full[nr]=''             # Wenn gesetzt (1, yes, True, ...) wird das Profil übersprungen
 minfree_bg[nr]=''             # Mindestens frei auf dem Ziel (in MB). Wird alle 5 Minuten geprüft
        log[nr]="${target[nr]}/${DT_TODAY}_${title[nr]}.log"
-  save_acl[nr]=''
     exfrom[nr]="$(mktemp "${TMPDIR:-/tmp}/tmp.XXXX")"
   borg_create_opt[nr]=''
 cat > "${exfrom[nr]}" <<_EOF_
@@ -245,7 +244,6 @@ _EOF_
 # skip_full[nr]=''             # Wenn gesetzt (1, yes, True, ...) wird das Profil übersprungen
 #minfree_bg[nr]=''             # Mindestens frei auf dem Ziel (in MB). Wird alle 5 Minuten geprüft
 #       log[nr]="${target[nr]}/${DT_TODAY}_${title[nr]}.log"
-#  save_acl[nr]=''
 #    exfrom[nr]="$(mktemp "${TMPDIR:-/tmp}/tmp.XXXX")"
 #  borg_create_opt[nr]=''
 #cat > "${exfrom[nr]}" <<_EOF_
