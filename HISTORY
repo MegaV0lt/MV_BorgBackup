@@ -16,6 +16,8 @@ Der Betrag kann frei gewählt werden. Vorschlag: 2 EUR
     wird (noch) nicht unterstützt
   - Sicherung von Dateizugriffskontrollisten (ACL) entfernt
 2022.02.05
-  - Löschen von alten Log-Dateien über SSH 
-  - Name des Profils als Prefic für das Archiv
+  - Löschen von alten Log-Dateien über SSH
+  - Name des Profils als Prefix für das Archiv
+2022.02.09
+ - Löschen von alten Log-Dateien kann deaktiviert werden (-d 0)
 

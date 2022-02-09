@@ -11,7 +11,7 @@
 # => http://paypal.me/SteBlo <= Der Betrag kann frei gewählt werden.                    #
 #                                                                                       #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-VERSION=220205
+VERSION=220209
 
 # Dieses Skript sichert / synchronisiert Verzeichnisse mit borg.
 # Dabei können beliebig viele Profile konfiguriert oder die Pfade direkt an das Skript übergeben werden.
@@ -44,7 +44,7 @@ f_errtrap() {  # ERR-Trap mit "ON" aktivieren, ansonsten nur ins ERRLOG
   if [[ "${1^^}" == 'ON' ]] ; then
     trap 'f_exit 2 "$BASH_COMMAND" "$LINENO" ${FUNCNAME:-$BASH_SOURCE} $?' ERR  # Bei Fehlern und nicht gefundenen Programmen
   else  # ERR-Trap nur loggen
-    trap 'echo "=> Info (Fehler $?) in Zeile "$LINENO" (${FUNCNAME:-$BASH_SOURCE}): $BASH_COMMAND" >> "${ERRLOG:-/tmp/${SELF_NAME%.*}.log}"' ERR
+    trap 'echo "=> Info (Fehler $?) in Zeile $LINENO (${FUNCNAME:-$BASH_SOURCE}): $BASH_COMMAND" >> "${ERRLOG:-/tmp/${SELF_NAME%.*}.log}"' ERR
   fi
 }
 
@@ -196,6 +196,7 @@ f_del_old_backup() {  # Archive älter als $DEL_OLD_BACKUP Tage löschen
   { echo -e "[${dt}] Lösche alte Sicherungen aus ${1}…\n"
     export BORG_PASSPHRASE
     borg prune "${BORG_PRUNE_OPT[@]}" "$1" "${BORG_PRUNE_OPT_KEEP[@]}"
+    [[ $del_old_backup -eq 0 ]] && { echo 'Löchen von Log-Dateien ist deaktiviert!' ; return ;}
     # Logdatei(en) löschen (Wenn $TITLE im Namen)
     if [[ -n "${SSH_LOG[*]}" ]] ; then
       echo "Lösche alte Logdateien (${del_old_backup} Tage) aus ${SSH_LOG[2]%/*}…"
@@ -498,7 +499,11 @@ for PROFIL in "${P[@]}" ; do  # Anzeige der Einstellungen
   if [[ -n "$DEL_OLD_BACKUP" ]] ; then
     case $MODE in
       [N]) if [[ $DEL_OLD_BACKUP =~ ^[0-9]+$ ]] ; then  # Prüfen, ob eine Zahl angegeben wurde
-             echo -e "$msgWRN Gelöschte Dateien:\e[1m\tLÖSCHEN wenn älter als $DEL_OLD_BACKUP Tage${nc}"
+             if [[ $DEL_OLD_BACKUP -eq 0 ]] ; then
+               echo -e "$msgWRN Log-Dateien:\t\t Werden \e[1mnicht gelöscht${nc} (-d $DEL_OLD_BACKUP)"
+             else
+               echo -e "$msgWRN Log-Dateien:\e[1m\tLÖSCHEN wenn älter als $DEL_OLD_BACKUP Tage${nc}"
+             fi
            else
              echo -e "$msgERR Keine gültige Zahl!${nc} (-d $DEL_OLD_BACKUP)" >&2 ; f_exit 1
            fi
