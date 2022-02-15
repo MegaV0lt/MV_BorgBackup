@@ -20,7 +20,17 @@ key_bat="${SELF%.*}.key_bat"
 # Exit bei Fehler!
 set -e
 
-case "${1^^}" in
+action="${1:-SWITCH}"
+
+if [[ "$action" == 'SWITCH' ]] ; then
+  if [[ -e "$key_ac" && -e "$key_bat" ]] ; then
+    action='ON'   # Werte wieder herstellen
+  else
+    action='OFF'  # Bereitsachaft deaktivieren
+  fi
+fi
+
+case "${action^^}" in
   ENABLE|ON) # Alte Werte wieder herstellen
     if [[ -e "$key_ac" && -e "$key_bat" ]] ; then
       read -r ac < "$key_ac" ; read -r bat < "$key_bat"
