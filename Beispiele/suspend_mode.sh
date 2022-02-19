@@ -14,8 +14,9 @@ KEY_BAT='sleep-inactive-battery-timeout'
 
 # Interne Variablen
 SELF="$(readlink /proc/$$/fd/255)" || SELF="$0"  # Eigener Pfad (besseres $0)
-key_ac="${SELF%.*}.key_ac"                       # Datei zum speichern des Wertes
-key_bat="${SELF%.*}.key_bat"
+SELF_NAME="${SELF##*/}"                          # Skriptname
+key_ac=".${SELF%.*}.key_ac"                      # Datei zum speichern des Wertes
+key_bat=".${SELF%.*}.key_bat"
 
 # Exit bei Fehler!
 set -e
@@ -36,7 +37,7 @@ case "${action^^}" in
       read -r ac < "$key_ac" ; read -r bat < "$key_bat"
       gsettings set "$SCHEMA" "$KEY_AC" "$ac" && rm "$key_ac"
       gsettings set "$SCHEMA" "$KEY_BAT" "$bat"  && rm "$key_bat"
-      echo "Werte für Bereitschaft wieder hergestellt (${ac} ${bat})."
+      echo "${SELF_NAME}: Werte für Bereitschaft wieder hergestellt (${ac} ${bat})."
     fi
   ;;
   DISABLE|OFF) # Aktuelle Einstellungen speichern
@@ -46,7 +47,7 @@ case "${action^^}" in
       # Bereitschft deaktivieren
       gsettings set "$SCHEMA" "$KEY_AC" 0
       gsettings set "$SCHEMA" "$KEY_BAT" 0
-      echo "Bereitschaft deaktiviert. Alte Werte gespeichert."
+      echo "${SELF_NAME}: Bereitschaft deaktiviert. Alte Werte gespeichert."
     fi
   ;;
   *) echo "Unbekannte Option! Erlaubt sind: enable, on, diasble, off"
