@@ -15,9 +15,9 @@ printf -v DT_NOW '%(%F_%H%M)T' -1  # JJJJ-MM-DD_HHMM (2017-10-19_1107)
 
 # Optionen für borg; Verzeichnisse dürfen nicht angegeben werden
 # Vorgabewerte; Müssen normalerweise nicht geändert werden. https://borgbackup.readthedocs.io/en/stable/usage/create.html
-BORG_CREATE_OPT=(--filter AME --info --stats)
-#BORG_CREATE_OPT+=(--list)  # Aktivieren für ausführliche Logs
-# Weitere Ausschlüsse
+BORG_CREATE_OPT=(--info --stats)
+#BORG_CREATE_OPT+=(--list --filter AMCEdhs?)  # Aktivieren für ausführliche Logs
+# Allgemeine Ausschlüsse
 BORG_CREATE_OPT+=(--exclude-caches --exclude-if-present .nobackup --keep-exclude-tags)
 
 # Optionen für borg prune. https://borgbackup.readthedocs.io/en/stable/usage/prune.html
@@ -33,6 +33,7 @@ BORG_INIT_OPT=('--encryption=authenticated-blake2' '--make-parent-dirs')
 # Für “Warning: Attempting to access a previously unknown unencrypted repository”
 #export BORG_RELOCATED_REPO_ACCESS_IS_OK=yes            # 'yes' oder 'no' (default)
 # Für “Warning: The repository at location … was previously located at …”
+export BORG_RSH='ssh -oBatchMode=yes'
 
 # [optional] Einhängepunkt der externen Festplatte
 # Vor der Sicherung wird geprüft, ob die externe Festplatte eingebunden ist
