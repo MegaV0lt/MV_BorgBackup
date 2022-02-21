@@ -4,14 +4,13 @@
 # Author: MegaV0lt                                                                      #
 # Forum: http://j.mp/1TblNNj                                                            #
 # GIT: https://github.com/MegaV0lt/MV_BorgBackup                                        #
-# Abgeleitet von MV_Backup                                                              #
 #                                                                                       #
 # Alle Anpassungen zum Skript, kann man in der HISTORY und in der .conf nachlesen. Wer  #
 # sich erkenntlich zeigen möchte, kann mir gerne einen kleinen Betrag zukommen lassen:  #
 # => http://paypal.me/SteBlo <= Der Betrag kann frei gewählt werden.                    #
 #                                                                                       #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-VERSION=220209
+VERSION=220221
 
 # Dieses Skript sichert / synchronisiert Verzeichnisse mit borg.
 # Dabei können beliebig viele Profile konfiguriert oder die Pfade direkt an das Skript übergeben werden.
@@ -157,7 +156,7 @@ f_settings() {
         ERRLOG="${LOG%.*}.err.log"                 # Fehlerlog im Logverzeichnis der Sicherung
         : "${FILES_DIR:=borg_repository}"          # Vorgabe für Sicherungsordner
         : "${ARCHIV:="{now:%Y-%m-%d_%H:%M}"}"      # Vorgabe für Archivname (Borg)
-        ARCHIV="${TITLE}_${ARCHIV}"                # Name des Provils als Prefix im Archiv
+        ARCHIV="${TITLE}_${ARCHIV}"                # Name des Profils als Prefix im Archiv
         # Bei mehreren Profilen müssen die Werte erst gesichert und später wieder zurückgesetzt werden
         [[ -n "${mount[i]}" ]] && { _MOUNT="${MOUNT:-0}" ; MOUNT="${mount[i]}" ;}  # Eigener Einhängepunkt
         unset -v 'SSH_TARGET' 'SSH_LOG'
@@ -189,13 +188,15 @@ f_settings() {
   return 0
 }
 
-f_del_old_backup() {  # Archive älter als $DEL_OLD_BACKUP Tage löschen
+f_del_old_backup() {  # Archive älter als $DEL_OLD_BACKUP Tage löschen. $1 = repository
   local dt del_old_backup="${DEL_OLD_BACKUP:-30}"
   printf -v dt '%(%F %R.%S)T' -1
   echo -e "$msgINF Lösche alte Sicherungen aus ${1}…"
   { echo -e "[${dt}] Lösche alte Sicherungen aus ${1}…\n"
     export BORG_PASSPHRASE
+    echo "borg prune ${BORG_PRUNE_OPT[*]} $1 ${BORG_PRUNE_OPT_KEEP[*]}"
     borg prune "${BORG_PRUNE_OPT[@]}" "$1" "${BORG_PRUNE_OPT_KEEP[@]}"
+    [[ -n "$BORG_COMPACT" ]] && borg compact "$1"  # Belegten Speicher frei geben
     [[ $del_old_backup -eq 0 ]] && { echo 'Löchen von Log-Dateien ist deaktiviert!' ; return ;}
     # Logdatei(en) löschen (Wenn $TITLE im Namen)
     if [[ -n "${SSH_LOG[*]}" ]] ; then
@@ -372,7 +373,7 @@ fi
 tty --silent && clear
 echo -e "\e[44m \e[0;1m MV_BorgBackup${nc}\e[0;32m => Version: ${VERSION}${nc} by MegaV0lt"
 # Anzeigen, welche Konfiguration geladen wurde!
-echo -e "\e[46m $nc $CONFLOADED Konfiguration:\e[1m\t${CONFIG}${nc}\n"
+echo -e "\e[46m $nc $CONFLOADED Konfiguration:\e[1m ${CONFIG}${nc}\n"
 [[ $EUID -ne 0 ]] && echo -e "$msgWRN Skript ohne root-Rechte gestartet!"
 
 # Symlink /dev/fd fehlt bei manchen Systemen (BSD, OpenWRT, ...). https://bugzilla.redhat.com/show_bug.cgi?id=814850
