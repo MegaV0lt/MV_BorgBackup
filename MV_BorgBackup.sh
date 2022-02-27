@@ -10,7 +10,7 @@
 # => http://paypal.me/SteBlo <= Der Betrag kann frei gewählt werden.                    #
 #                                                                                       #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-VERSION=220221
+VERSION=220227
 
 # Dieses Skript sichert / synchronisiert Verzeichnisse mit borg.
 # Dabei können beliebig viele Profile konfiguriert oder die Pfade direkt an das Skript übergeben werden.
@@ -29,8 +29,8 @@ fi
 SELF="$(readlink /proc/$$/fd/255)" || SELF="$0"  # Eigener Pfad (besseres $0)
 SELF_NAME="${SELF##*/}"                          # skript.sh
 TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/${SELF_NAME%.*}.XXXX")"   # Ordner für temporäre Dateien
-declare -a BORG_CREATE_OPT BORGPROF BORGRC ERRLOGS LOGFILES
-declare -a SSH_LOG SSH_TARGET UNMOUNT           # Einige Array's
+declare -a BORG_CREATE_OPT BORGPROF BORGRC BORG_VERSION ERRLOGS LOGFILES
+declare -a SSH_ERRLOG SSH_LOG SSH_TARGET UNMOUNT  # Einige Array's
 declare -A _arg _target
 msgERR='\e[1;41m FEHLER! \e[0;1m' ; nc="\e[0m"  # Anzeige "FEHLER!" ; Reset der Farben
 msgINF='\e[42m \e[0m' ; msgWRN='\e[103m \e[0m'  # " " mit grünem/gelben Hintergrund
@@ -196,7 +196,7 @@ f_del_old_backup() {  # Archive älter als $DEL_OLD_BACKUP Tage löschen. $1 = r
     export BORG_PASSPHRASE
     echo "borg prune ${BORG_PRUNE_OPT[*]} $1 ${BORG_PRUNE_OPT_KEEP[*]}"
     borg prune "${BORG_PRUNE_OPT[@]}" "$1" "${BORG_PRUNE_OPT_KEEP[@]}"
-    [[ -n "$BORG_COMPACT" ]] && borg compact "$1"  # Belegten Speicher frei geben
+    [[ "${BORG_VERSION[0]}" -ge 1 && "${BORG_VERSION[1]}" -ge 2 ]] && borg compact "$1"  # Belegten Speicher frei geben
     [[ $del_old_backup -eq 0 ]] && { echo 'Löchen von Log-Dateien ist deaktiviert!' ; return ;}
     # Logdatei(en) löschen (Wenn $TITLE im Namen)
     if [[ -n "${SSH_LOG[*]}" ]] ; then
@@ -209,7 +209,7 @@ f_del_old_backup() {  # Archive älter als $DEL_OLD_BACKUP Tage löschen. $1 = r
       find "${LOG%/*}" -maxdepth 1 -type f -mtime +"$del_old_backup" \
         -name "*${TITLE}*" ! -name "${LOG##*/}" -delete -print
     fi  # -n SSH_LOG
-  } &>> "$LOG" #2>> "$ERRLOG"
+  } &>> "$LOG"
 }
 
 f_countdown_wait() {
@@ -528,6 +528,9 @@ if [[ -n "${MISSING[*]}" ]] ; then  # Fehlende Programme anzeigen
   echo -e "$msgERR Sie benötigen \"${MISSING[*]}\" zur Ausführung dieses Skriptes!" >&2
   f_exit 1
 fi
+# Borg Version prüfen und speichern
+read -r -a BORG_VERSION < <(borg --version)  # borg 1.1.17
+IFS='.' read -r -a BORG_VERSION <<< "${BORG_VERSION[1]}"  # 1 1 17
 
 # --- PRE_ACTION ---
 if [[ -n "$PRE_ACTION" ]] ; then

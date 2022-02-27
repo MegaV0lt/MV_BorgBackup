@@ -29,9 +29,6 @@ BORG_PRUNE_OPT_KEEP=(--keep-within=1d --keep-daily=7 --keep-weekly=4 --keep-mont
 # Optionen für borg init. https://borgbackup.readthedocs.io/en/stable/usage/init.html
 BORG_INIT_OPT=('--encryption=authenticated-blake2' '--make-parent-dirs')
 
-# Ab borg 1.2.0 zum freigeben von belegtrem Speiucher nach 'prune'
-#BORG_COMPACT='true'
-
 #export BORG_UNKNOWN_UNENCRYPTED_REPO_ACCESS_IS_OK=yes  # 'yes' oder 'no' (default)
 # Für “Warning: Attempting to access a previously unknown unencrypted repository”
 #export BORG_RELOCATED_REPO_ACCESS_IS_OK=yes            # 'yes' oder 'no' (default)
