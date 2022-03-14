@@ -10,7 +10,7 @@
 # => http://paypal.me/SteBlo <= Der Betrag kann frei gewählt werden.                    #
 #                                                                                       #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-VERSION=220227
+VERSION=220314
 
 # Dieses Skript sichert / synchronisiert Verzeichnisse mit borg.
 # Dabei können beliebig viele Profile konfiguriert oder die Pfade direkt an das Skript übergeben werden.
@@ -542,8 +542,6 @@ for PROFIL in "${P[@]}" ; do
   f_settings
 
   if [[ "$PROFIL" != 'customBak' ]] ; then  # Nicht bei benutzerdefinierter Sicherung
-    #f_remove_slash SOURCE ; f_remove_slash TARGET  # "/" am Ende entfernen
-
     # Festplatte (Ziel) eingebunden?
     if [[ -n "$MOUNT" && "$TARGET" == "$MOUNT"* ]] ; then
       if ! mountpoint --quiet "$MOUNT" ; then
@@ -600,6 +598,10 @@ for PROFIL in "${P[@]}" ; do
         else  # Alte Daten nur löschen wenn nicht abgebrochen wurde!
           f_del_old_backup "$R_TARGET"  # Funktion zum Löschen alter Sicherungen aufrufen
         fi  # -e .stopflag
+        if [[ "$SHOWBORGINFO" == 'true' ]] ; then  # Temporär speichern für Mail-Bericht
+          tempinfo="${LOG##*/}" ; tempinfo="${tempinfo%*.log}_info.txt"
+          borg info --last 1 "$R_TARGET" > "${TMPDIR}/${tempinfo}"
+        fi
       fi  # SKIP_FULL
     ;;
     *) # Üngültiger Modus
@@ -728,6 +730,11 @@ if [[ -n "$MAILADRESS" ]] ; then
         du --human-readable --summarize "$LOGDIR"
         for dir in "${LOGDIR}"/*/ ; do
           du --human-readable --summarize "$dir"
+          if [[ "$SHOWBORGINFO" == 'true' ]] ; then
+            tempinfo="${LOGFILES[i]##*/}" ; tempinfo="${tempinfo%*.log}_info.txt"
+            echo -e "\n==> Borg info:"
+            cat "${TMPDIR}/${tempinfo}"  # Borg info zum Mailbericht
+          fi  # SHOWBORGINFO
         done
       } >> "$MAILFILE"
     fi  # SHOWCONTENT

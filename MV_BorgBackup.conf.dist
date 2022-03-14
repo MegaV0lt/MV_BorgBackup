@@ -83,9 +83,10 @@ MAILADRESS=''
 ### Einstellungen für den eMail-Bericht ###
 SHOWOS='true'            # Zeige verwendetes Betriebssysten (/etc/os-release)
 SHOWOPTIONS='true'       # Zeige die verwendeten Optionen beim Skriptaufruf
+SHOWERRORS='true'        # Zeige Profile mit Fehlern (borg Fehlercode)
 SHOWUSAGE='true'         # Zeige die Belegung des Sicherungsziels (df -Ph)
 SHOWCONTENT='true'       # Zeige Inhalt der Sichrungsziele (Oberste Ebene)
-SHOWERRORS='true'        # Zeige Profile mit Fehlern (borg Fehlercode)
+SHOWBORGINFO='true'      # Borg info zum Mailbericht hinzufügen (Nur zusammen mit SHOWCONTENT)
 SHOWDURATION='true'      # Zeige Dauer der Sicherung
 SHOWUSEDPROFILES='true'  # Anzeige der verwendeten Profile (Name)
 
