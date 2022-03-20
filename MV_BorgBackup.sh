@@ -10,7 +10,7 @@
 # => http://paypal.me/SteBlo <= Der Betrag kann frei gewählt werden.                    #
 #                                                                                       #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-VERSION=220314
+VERSION=220320
 
 # Dieses Skript sichert / synchronisiert Verzeichnisse mit borg.
 # Dabei können beliebig viele Profile konfiguriert oder die Pfade direkt an das Skript übergeben werden.
@@ -196,7 +196,7 @@ f_del_old_backup() {  # Archive älter als $DEL_OLD_BACKUP Tage löschen. $1 = r
     export BORG_PASSPHRASE
     echo "borg prune ${BORG_PRUNE_OPT[*]} $1 ${BORG_PRUNE_OPT_KEEP[*]}"
     borg prune "${BORG_PRUNE_OPT[@]}" "$1" "${BORG_PRUNE_OPT_KEEP[@]}"
-    [[ "${BORG_VERSION[0]}" -ge 1 && "${BORG_VERSION[1]}" -ge 2 ]] && borg compact "$1"  # Belegten Speicher frei geben
+    [[ "${BORG_VERSION[1]}" -ge 1 && "${BORG_VERSION[2]}" -ge 2 ]] && borg compact "$1"  # Belegten Speicher frei geben
     [[ $del_old_backup -eq 0 ]] && { echo 'Löchen von Log-Dateien ist deaktiviert!' ; return ;}
     # Logdatei(en) löschen (Wenn $TITLE im Namen)
     if [[ -n "${SSH_LOG[*]}" ]] ; then
@@ -529,8 +529,7 @@ if [[ -n "${MISSING[*]}" ]] ; then  # Fehlende Programme anzeigen
   f_exit 1
 fi
 # Borg Version prüfen und speichern
-read -r -a BORG_VERSION < <(borg --version)  # borg 1.1.17
-IFS='.' read -r -a BORG_VERSION <<< "${BORG_VERSION[1]}"  # 1 1 17
+IFS=' .' read -r -a BORG_VERSION < <(borg --version)  # borg 1 1 17
 
 # --- PRE_ACTION ---
 if [[ -n "$PRE_ACTION" ]] ; then
