@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # = = = = = = = = = = = =  MV_BorgBackup.sh - Borg BACKUP  = = = = = = = = = = = = = =  #
 #                                                                                       #
 # Author: MegaV0lt                                                                      #
@@ -10,7 +10,7 @@
 # => http://paypal.me/SteBlo <= Der Betrag kann frei gewählt werden.                    #
 #                                                                                       #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-VERSION=220320
+VERSION=220407
 
 # Dieses Skript sichert / synchronisiert Verzeichnisse mit borg.
 # Dabei können beliebig viele Profile konfiguriert oder die Pfade direkt an das Skript übergeben werden.
