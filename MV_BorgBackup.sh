@@ -7,10 +7,10 @@
 #                                                                                       #
 # Alle Anpassungen zum Skript, kann man in der HISTORY und in der .conf nachlesen. Wer  #
 # sich erkenntlich zeigen möchte, kann mir gerne einen kleinen Betrag zukommen lassen:  #
-# => http://paypal.me/SteBlo <= Der Betrag kann frei gewählt werden.                    #
+# => https://paypal.me/SteBlo <= Der Betrag kann frei gewählt werden.                   #
 #                                                                                       #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-VERSION=230111
+VERSION=230210
 
 # Dieses Skript sichert / synchronisiert Verzeichnisse mit borg.
 # Dabei können beliebig viele Profile konfiguriert oder die Pfade direkt an das Skript übergeben werden.
@@ -220,8 +220,9 @@ f_countdown_wait() {
       echo -e -n "\rStart in \e[97;44m  $i  ${nc} Sekunden"
       sleep 1
     done
+    echo -e -n '\r'
   fi
-  echo -e -n '\r' ; "$NOTIFY" "Sicherung startet (Profil: \"${TITLE}\")"
+  "$NOTIFY" "Sicherung startet (Profil: \"${TITLE}\")"
 }
 
 f_check_free_space() {  # Prüfen ob auf dem Ziel genug Platz ist
@@ -278,24 +279,24 @@ f_source_config() {  # Konfiguration laden
 }
 
 f_borg_init() {
-local borg_repo="$1" do_init='false'
-if [[ "$borg_repo" =~ '@' ]] ; then  # ssh
-  if ! ssh "${SSH_TARGET[1]%:*}" -p "${SSH_TARGET[3]:-22}" "[ -d ${SSH_TARGET[2]} ]" ; then
-    echo -e "$msgWRN Borg Repository nicht gefunden! (${borg_repo})" >&2
-    do_init='true'
+  local borg_repo="$1" do_init='false'
+  if [[ "$borg_repo" =~ '@' ]] ; then  # ssh
+    if ! ssh "${SSH_TARGET[1]%:*}" -p "${SSH_TARGET[3]:-22}" "[ -d ${SSH_TARGET[2]} ]" ; then
+      echo -e "$msgWRN Borg Repository nicht gefunden! (${borg_repo})" >&2
+      do_init='true'
+    fi
+  elif [[ ! -d "$R_TARGET" ]] ; then   # Das Repository muss vorhanden sein
+      echo -e "$msgWRN Borg Repository nicht gefunden! (${borg_repo})" >&2
+      do_init='true'
   fi
-elif [[ ! -d "$R_TARGET" ]] ; then   # Das Repository muss vorhanden sein
-    echo -e "$msgWRN Borg Repository nicht gefunden! (${borg_repo})" >&2
-    do_init='true'
-fi
-if [[ "$PROFIL" != 'customBak' && "$do_init" == 'true' ]] ; then
-  echo "Versuche das Repository anzulegen…"
-  export BORG_PASSPHRASE
-  if ! borg init "${BORG_INIT_OPT[@]}" "$borg_repo" &>>/dev/null ; then
-    echo -e "$msgERR Anlegen des Repostorys fehlgeschlagen!${nc}" ; f_exit 1
+  if [[ "$PROFIL" != 'customBak' && "$do_init" == 'true' ]] ; then
+    echo "Versuche das Repository anzulegen…"
+    export BORG_PASSPHRASE
+    if ! borg init "${BORG_INIT_OPT[@]}" "$borg_repo" &>/dev/null ; then
+      echo -e "$msgERR Anlegen des Repostorys fehlgeschlagen!${nc}" ; f_exit 1
+    fi
+    borg info --verbose "$borg_repo" &>> "$LOG"  # Daten in das Log
   fi
-  borg info --verbose "$borg_repo" &>> "$LOG"  # Daten in das Log
-fi
 }
 
 # --- START ---
