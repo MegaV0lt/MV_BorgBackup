@@ -530,6 +530,10 @@ if [[ -n "${MISSING[*]}" ]] ; then  # Fehlende Programme anzeigen
 fi
 # Borg Version prüfen und speichern
 IFS=' .' read -r -a BORG_VERSION < <(borg --version)  # borg 1 1 17
+if [[ ${BORG_VERSION[1]} -ge '2' ]] ; then
+  echo -e "$msgERR Das Skript unterstützt (momentan) nur Borg bis Version 1.2.x" >&2
+  f_exit_1
+fi
 
 # --- PRE_ACTION ---
 if [[ -n "$PRE_ACTION" ]] ; then
