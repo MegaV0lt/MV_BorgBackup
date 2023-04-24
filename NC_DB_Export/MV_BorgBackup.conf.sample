@@ -1,0 +1,261 @@
+########################### KONFIGURATION zum MV_Backup Skript ##########################
+#
+# Alle Anpassungen zum Skript, kann man hier und im Skript am Anfang der Datei nachlesen.
+# Wer sich erkenntlich zeigen möchte, kann mir gerne einen kleinen Betrag zukommen lassen:
+# => http://paypal.me/SteBlo  Der Betrag kann frei gewählt werden. Vorschlag: 2 EUR
+#
+############################### ALLGEMEINE KONFIGURATION ################################
+
+### Hinweis zum ausfüllen: Wenn Variablen ($) verwendet werden,
+### dann in doppelten " ansonsten können einfache ' benutzt werden
+
+# Datum in Variable speichern (Für Logs usw.)
+printf -v DT_TODAY '%(%F)T' -1  # JJJJ-MM-DD (2017-10-19)
+printf -v DT_NOW '%(%F_%H%M)T' -1  # JJJJ-MM-DD_HHMM (2017-10-19_1107)
+
+# Optionen für borg; Verzeichnisse dürfen nicht angegeben werden
+# Vorgabewerte; Müssen normalerweise nicht geändert werden. https://borgbackup.readthedocs.io/en/stable/usage/create.html
+BORG_CREATE_OPT=(--filter AMCE? --stats --list --verbose)
+# Allgemeine Ausschlüsse
+BORG_CREATE_OPT+=(--exclude-caches --exclude-if-present .nobackup --keep-exclude-tags)
+
+# Optionen für borg prune. https://borgbackup.readthedocs.io/en/stable/usage/prune.html
+BORG_PRUNE_OPT=(--list --stats)
+# Welche Archive sollen behalten werden. Beispiele:
+#BORG_PRUNE_OPT_KEEP=(--keep-within 30d)  # Backups der letzten 30 Tage behalten
+BORG_PRUNE_OPT_KEEP=(--keep-within=1d --keep-daily=7 --keep-weekly=4 --keep-monthly=12)
+
+# Optionen für borg init. https://borgbackup.readthedocs.io/en/stable/usage/init.html
+BORG_INIT_OPT=(--encryption=authenticated-blake2 --make-parent-dirs)
+
+export BORG_UNKNOWN_UNENCRYPTED_REPO_ACCESS_IS_OK=yes  # 'yes' oder 'no' (default)
+# Für “Warning: Attempting to access a previously unknown unencrypted repository”
+export BORG_RELOCATED_REPO_ACCESS_IS_OK=yes            # 'yes' oder 'no' (default)
+# Für “Warning: The repository at location … was previously located at …”
+
+# [optional] Einhängepunkt der externen Festplatte
+# Vor der Sicherung wird geprüft, ob die externe Festplatte eingebunden ist
+# Geeignet, wenn alle Profile das Sicherungsziel im selben Einhängepunkt haben
+# ACHTUNG: Bei verschiedenen Sicherungszielen den Parameter mount[nr] in
+# der Profilkonfiguration verwenden
+#MOUNT='/mnt/usbdisk'     # Einhängepunkt des Sicherungsziels (Beispiel)
+#MOUNT='/mnt/remote_ftp'  # Einhängepunkt für externen FTP (Muss in der fstab definiert sein )
+MOUNT="$(readlink -m /mnt/usbdisk)"  # Falls Einhängepunkt ein Symlink ist
+
+# [optional] Ordner in dem die Sicherung gespeichert wird. Vorgabe ist "borg_repository"
+# Der Ordner wird im Sicherungsziel ($TARGET) angelegt. Nur Name angeben; keine "/"
+#FILES_DIR='borg_repository'
+
+# [optional] Zusätzlicher Suchpfad für das Skript, um Programme wie "find" oder
+# "curlftpfs" zu finden. Beispiel: PATH="/opt/bin:${PATH}" - Fügt "/opt/bin" am Anfang ein.
+# Es können mehrere Pfade angegeben werden. Wichtig: Der ":" dient als Trennzeichen!
+# Die Variabel ${PATH} muss entweder am Anfang oder am Ende eingefügt werden.
+#PATH="/opt/bin:${PATH}"  # Am Ende angehängter Pfad: PATH="${PATH}:/opt/bin"
+
+# [optional] Zeitabstand in Sekunden, in der der Hintergrundprozess (siehe minfree_bg[])
+# den freien Speicherplatz auf dem Ziel überprüft. Vorgabe ist 5 Minuten
+#MFS_TIMEOUT=$((5*60))  # Zeit in Sekunden
+
+############################### EMAIL KONFIGURATION #####################################
+
+# Mailer, der verwendet werden soll. Mögliche Optionen sind:
+# mpack (In Verbindung mit ssmtp), sendmail, sendEmail (http://j.mp/Xo69II),
+# mail oder email (http://j.mp/1LwMBut).
+# Spezialfall: Eigenes Mail-Programm (customMail) siehe auch CUSTOM_MAIL
+MAILPROG='mpack'  # mpack, sendmail, sendEmail, mail, email oder customMail
+
+# Eigenes Mailprogramm inkl. kompletter Befehlszeile. Die Platzhalter MAILADRESS (Empfänger),
+# SUBJECT (Betreff), MAILFILE (Text der eMail) und ARCHIV (Logs) werden im Skript durch
+# die entsprechenden Werte ersetzt. Umleitungszeichen (<>) in einfache ' setzen.
+# Beispiel: CUSTOM_MAIL=(mymail -s SUBJECT -a ARCHIV MAILADRESS '<' MAILFILE)
+CUSTOM_MAIL=()
+
+# eMail-Empfänger (My@mail.de)
+# Nur ausfüllen, wenn man kein -e ... verwenden will (z.B. für crontab)
+# Es wird dann eine eMail versendet. Kann mit -e ... überschrieben werden
+MAILADRESS=''
+
+# eMail nur bei Fehler versenden. Kann mit -f über die Befehlszeile angewendet werden
+#MAILONLYERRORS='true'  # Kommentarzeichen (#) entfernen zum aktivieren
+
+### Einstellungen für den eMail-Bericht ###
+SHOWOS='true'            # Zeige verwendetes Betriebssysten (/etc/os-release)
+SHOWOPTIONS='true'       # Zeige die verwendeten Optionen beim Skriptaufruf
+SHOWUSAGE='true'         # Zeige die Belegung des Sicherungsziels (df -Ph)
+SHOWCONTENT='true'       # Zeige Inhalt der Sichrungsziele (Oberste Ebene)
+SHOWERRORS='true'        # Zeige Profile mit Fehlern (borg Fehlercode)
+SHOWDURATION='true'      # Zeige Dauer der Sicherung
+SHOWUSEDPROFILES='true'  # Anzeige der verwendeten Profile (Name)
+
+# Format des Archivs (Logdateien). Beispiele: tar.xz, tar.gz, tar.bz2, zip
+LOGARCH_FMT='tar.xz'  # Vorgabe ist tar.xz
+
+# Max. Größe des gepackten Logarchivs in Byte, das per Mail gesendet wird.
+# Bei MAXLOGSIZE=0 wird kein Archiv angehängt. Betrifft nur das Archiv!
+#MAXLOGSIZE=$((5*1024*1024))  # Beispiel 5 MB
+MAXLOGSIZE=$((1024*1024))     # 1 MB (Vorgabe)
+
+# Ausfüllen, wenn "sendEmail" verwendert wird (Diese Parameter werden von sendEmail benötigt)
+MAILSERVER=''        # Server (z.B. mail.gmx.net)
+MAILPORT=''          # Port (z.B. 25 oder 587 für TLS)
+MAILUSER=''          # z.B. My@mail.de
+MAILPASS=''          # z.B. v784hcnfd <- eMail-Passwort
+MAILSENDER=''        # Sendeadresse (z.B. My@mail.de)
+#USETLS=(-o tls=yes) # TLS für die SMTP-Verbindung verwenden
+
+############################### PRE- UND POST KONFIGURATION #############################
+
+# PRE_ACTION wird vor dem Sichern ausgeführt. Anführungszeichen müssen Maskiert (\")
+# werden. Beispiel: PRE_ACTION="echo \"PRE_ACTION\" startet hier!"
+PRE_ACTION='/usr/local/src/MV_BorgBackup/NC_DB_Export/NC_DB_Export.sh before'
+
+# POST_ACTION wird nach dem Sichern ausgeführt. Anführungszeichen müssen Maskiert (\")
+# werden
+POST_ACTION='/usr/local/src/MV_BorgBackup/NC_DB_Export/NC_DB_Export.sh after'
+
+########################### KONFIGURATION DER PROFILE (HILFE) ###########################
+#####   =>  Änderungen erst weiter unten ab "= = = Profil 1 = = =" vornehmen!  <=   #####
+
+# Bezeichnung des Profils; wird u.a. in der Hilfe angezeigt. Bitte nur POSIX
+# kompatible Zeichen verwenden: A–Z a–z 0–9 . _ -
+#title[nr]='Meine Sicherung'
+
+# Parameter, mit dem das jeweilige Profil gestartet wird (-p m). Muss eindeutig sein!
+# Erlaubt sind a-z. Nur einen Buchstaben verwenden!
+#arg[nr]='m'
+
+# [optional] Modus für die Sicherung. Parameter "Snapshot" verwenden um Snapshots zu erstellen
+# Z.B. 'Snapshot', 'snapshot' oder 'snap' für den Snapshot-Modus
+# Z.B. 'Daemon', 'daemon' oder 'd' für den Daemon-Modus
+# Z.B. 'Multi', 'multi' oder 'm' für den experimentellem Multi rsync-Modus
+# '', 'default' oder 'Normal' für den Normal-Modus
+#mode[nr]=''             # Modus (Normal, Snapshot, Daemon oder Multi)
+
+# [optional] Eigener Einhängepunkt
+# ACHTUNG: Bei target[nr] kein $MOUNT angeben. Entweder vollen Pfad verwenden
+#   oder die Varaible mount[nr] oder "${mount[nr]:-$MOUNT}" verwenden
+#mount[nr]=""             # Eigener Einhängepunkt
+
+# [optional] Quellverzeichnis auf FTP-Server (curlftpfs wird benötigt)
+# WICHTIG: Login-Daten mit angeben (user:password@ftp.server)
+# ACHTUNG: Wenn angegeben, dann ist ftpmnt[nr] der Einhängepunkt für den FTP
+#ftpsrc[nr]='ftp://myusername:mypassword@ftp.mydomain.com'  # Quelle ist ein FTP
+
+# [optional] Wenn ftpsrc[nr] verwendet wird, ist ftpmnt[nr] der Einhängepunkt
+#ftpmnt[nr]='/mnt/remote_ftp'  # Einhängepunkt für die FTP-Quelle
+
+# Quellverzeichnis(se)
+# WICHTIG: Pfadangaben müssen mit ';' getrennt werden!
+#   Z.B. "/Verzeichnis mit Leerzeichen;/Verzeichnis_2"
+# Wenn ftpsrc[nr] verwendet wird, kann man ftpmnt[nr] im Pfad mit angeben.
+# source[nr] muss dazu nach ftpmnt[nr] konfiguriert sein!
+#source[nr]="${ftpmnt[nr]}/html/include"  # FTP-Quelle
+#source[nr]='/var/log'  # Lokale Quelle
+
+# Zielverzeichnis. Mit "${mount[nr]:-$MOUNT}" wird $MOUNT verwendet, wenn
+# ${mount[nr]} leer ist. Muss eindeutig sein! Pfade nicht mehrfach verwenden!
+#target[nr]="${mount[nr]:-$MOUNT}/_Backup/VDR/Data"
+
+# [optional] Borg-Archivname. Vorgabe ist {now:%Y-%m-%d_%H:%M}
+#archiv[nr]=''
+
+# Borg Passphrase für das Archiv
+#passphrase[nr]=''
+
+# [optional] Wert in MegaByte. Freier Platz, der auf dem Ziel mindestens frei
+# sein muss. Bei Unterschreitung wird eine Warnung angezeigt und in das Fehlerlog
+# geschrieben. Das Backup wird NICHT angehalten! (Nur im Modus normal und multi)
+#minfree[nr]=100  # In MegaByte (1024 KB) # 1024 = 1 GB
+
+# [optional] Wenn gesetzt, dann wird bei ungenügend freiem Speicher das Profil
+# nicht gestartet und ein Logeintrag im Fehlerlog erstellt (Nur im Modus normal/multi)
+#skip_full[nr]=1  # Wenn gesetzt (1, yes, True, ...) wird das Profil übersprungen
+
+# [optional] Wert in MegaByte. Freier Platz, der auf dem Ziel mindestens frei
+# sein muss. Bei Unterschreitung wird eine Warnung angezeigt und in das Fehlerlog
+# geschrieben. Das Backup wird abgebrochen! Darf nicht mit minfree[nr] verwendet
+# werden (Nur im Modus normal und multi)
+#minfree_bg[nr]=100  # Mindestens frei auf dem Ziel (in MB). Wird alle 5 Minuten geprüft
+
+# [optional] Logdatei, in der die Ausgabe von borg gespeichert wird
+# Nützlich kann "$DT_TODAY" oder "$DT_NOW" sein, um separate Logs zu erhalten
+# Format: DT_TODAY=JJJJ-MM-DD DT_NOW=JJJJ-MM-DD_HHMM
+#log[nr]="${target[nr]}/${DT_TODAY}_${title[nr]}.log"
+
+# [optional] Zugriffskontrollisten (ACLs) zusätzlich sichern
+# Bei manchen Sicherungszielen werden möglicherweise die Dateizugriffsrechte nicht
+# gesetz. Wenn gesetzt, werden die Dateizugriffsrechte in einer Datei gesichert
+#save_acl[nr]="${target[nr]}/${DT_TODAY}_${title[nr]}.acl"
+
+# Temporäre Datei (Standard: $(mktemp -t "tmp.XXXX")); muss nicht geändert werden
+# "${TMPDIR:-/tmp}" TMPDIR wird im Skript gesetzt, falls Leer, dann /tmp
+#exfrom[nr]="$(mktemp "${TMPDIR:-/tmp}/tmp.XXXX")"
+
+# [optional] Optionen für borg, wenn nicht die Optionen aus $BORG_OPT (s.o.) verwendet werden sollen
+#borg_create_opt[nr]=''
+
+# Dateien und Verzeichnisse, die von der Sicherung ausgeschlossen werden sollen
+# Pro Zeile 1 Pfad; Pfadangaben mit Leerzeichen müssen nicht gesondert behandelt werden
+# ACHTUNG: Die Pfade sind relativ!
+#   tmp/                schließt /tmp und /var/tmp aus
+#   /tmp/               schließt nur /tmp aus
+#   /tmp/*              behält /tmp/ aber schließt den Inhalt aus
+#   /var/spool/lpd//cf  schließt Dateien auf, die mit cf beginnen und
+#                       im Ordner /var/spool/lpd sind
+#cat > "${exfrom[nr]}" <<_EOF_
+#lost+found/
+#tmp/
+#_EOF_
+
+nr=0  # Für die Nummerierung der Profile
+
+# = = = Profil 1  = = =
+((nr+=1))                     # Fortlaufende Profil-Nummer
+     title[nr]='Nextcloud'    # Profilname
+       arg[nr]='n'            # Argument (-p r)
+      mode[nr]=''             # Modus (Normal)
+     mount[nr]=''             # Eigener Einhängepunkt
+    ftpsrc[nr]=''             # Quelle ist ein FTP
+    ftpmnt[nr]=''             # Einhängepunkt für die FTP-Quelle
+# source: Nextcloud, Daten und Datenbank (/tmp/.ncdb). Pfade mit ';' trennen
+    source[nr]='/var/www/nextcloud;/var/nextcloud_data;/tmp/.ncdb'
+    target[nr]="${mount[nr]:-$MOUNT}/_Backup/MCP-Server/Nextcloud"
+    archiv[nr]=''             # Borg-Archivname. Vorgabe ist {now:%Y-%m-%d_%H:%M}
+passphrase[nr]='88152'        # Borg Passphrase für das Archiv
+   minfree[nr]=''             # In MegaByte (1024 KByte)
+ skip_full[nr]=''             # Wenn gesetzt (1, yes, True, ...) wird das Profil übersprungen
+minfree_bg[nr]=''             # Mindestens frei auf dem Ziel (in MB). Wird alle 5 Minuten geprüft
+       log[nr]="${target[nr]}/${DT_TODAY}_${title[nr]}.log"
+  save_acl[nr]=''
+    exfrom[nr]="$(mktemp "${TMPDIR:-/tmp}/tmp.XXXX")"
+borg_create_opt[nr]=''
+cat > "${exfrom[nr]}" <<_EOF_
+/var/nextcloud_data/updater-*
+/var/nextcloud_data/*/files_trasbin/*
+_EOF_
+
+
+# = = = Vorlage für neues Profil  = = =
+#((nr+=1))                     # Variable nr um eins hochzählen
+#     title[nr]=''             # Profilname
+#       arg[nr]=''             # Argument (-p)
+#      mode[nr]=''             # Modus (Normal)
+#     mount[nr]=''             # Eigener Einhängepunkt
+#    ftpsrc[nr]=''             # Quelle ist ein FTP
+#    ftpmnt[nr]=''             # Einhängepunkt für die FTP-Quelle
+#    source[nr]=''             # Pfade mit ';' trennen
+#    target[nr]=""
+#    archiv[nr]=''             # Borg-Archivname. Vorgabe ist {now:%Y-%m-%d_%H:%M}
+#passphrase[nr]=''             # Borg Passphrase für das Archiv
+#   minfree[nr]=''             # In MegaByte (1024 KByte)
+# skip_full[nr]=''             # Wenn gesetzt (1, yes, True, ...) wird das Profil übersprungen
+#minfree_bg[nr]=''             # Mindestens frei auf dem Ziel (in MB). Wird alle 5 Minuten geprüft
+#       log[nr]="${target[nr]}/${DT_TODAY}_${title[nr]}.log"
+#  save_acl[nr]=''
+#    exfrom[nr]="$(mktemp "${TMPDIR:-/tmp}/tmp.XXXX")"
+#borg_create_opt[nr]=''
+#cat > "${exfrom[nr]}" <<_EOF_
+#
+#_EOF_
+
+################################ ENDE DER KONFIGURATION #################################

@@ -1,0 +1,31 @@
+# This is a sample configuration file for NC_DB_Export.sh.
+# It is recommended to use the script `setup.sh` for an easy automated setup of the export script.
+# This will then create the configuration file `NC_DB_Export.conf`.
+#
+# If you do not want to use the setup script, you can also take this file as starting point.
+# You will have to edit all section marked with '# TODO' in order to customize the configuration so it fits your Nextcloud instance.
+# Simply copy the sample file (`cp NC_DB_Export.conf.sample NC_DB_Export.conf`) and edit the file accordingly.
+
+# TODO: File names for backup files
+fileNameBackupDb='nextcloud-db.sql'
+
+# TODO: The directory of your Nextcloud installation (this is a directory under your web root)
+nextcloudFileDir='/var/www/nextcloud'
+
+# TODO: The service name of the web server. Used to start/stop web server (e.g. 'systemctl start <webserverServiceName>')
+webserverServiceName='nginx'
+
+# TODO: Your web server user
+webserverUser='www-data'
+
+# TODO: The name of the database system (one of: mysql, mariadb, postgresql)
+databaseSystem='postgresql'
+
+# TODO: Your Nextcloud database name
+nextcloudDatabase='nextcloud_db'
+
+# TODO: Your Nextcloud database user
+dbUser='nextcloud_db_user'
+
+# TODO: The password of the Nextcloud database user
+dbPassword='pAsSw0rD'
