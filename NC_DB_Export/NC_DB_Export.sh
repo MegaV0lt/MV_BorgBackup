@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Bash skript zum exportieren der Nextcloud Datenbank für Backup mit MV_BorgBackup.
-# Skript wird via PRE_ACTION und POST_ACtion in MV_BorgBackup.conf aufgerufen:
+# Skript wird via PRE_ACTION und POST_ACTION in MV_BorgBackup.conf aufgerufen:
 # PRE_ACTION: "NC_DB_Export.sh before"
 # POST_ACTION: "NC_DB_Export.sh after"
 #
@@ -16,7 +16,7 @@
 # 	- MySQL/MariaDB
 # 	- PostgreSQL
 #
-# VERSION=230424
+# VERSION=230430
 
 set -Eeuo pipefail  # Beenden bei jedem Fehler
 trap f_CtrlC INT    # CTRL+C
@@ -89,7 +89,7 @@ case "$1" in
       else
         mysqldump --single-transaction -h localhost -u "$dbUser" -p"$dbPassword" "$nextcloudDatabase" > "/tmp/.ncdb/${fileNameBackupDb}"
       fi
-      echo -e "Done\n"
+      echo -e "Fertig\n"
     elif [[ "${databaseSystem,,}" == 'postgresql' || "${databaseSystem,,}" == 'pgsql' ]] ; then
       printf '%(%H:%M:%S)T: %b\n' -1 "Exportiere Nextcloud Datenbank (PostgreSQL)…"
       if ! [[ -x "$(command -v pg_dump)" ]] ; then
