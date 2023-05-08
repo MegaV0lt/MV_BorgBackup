@@ -230,8 +230,9 @@ minfree_bg[nr]=''             # Mindestens frei auf dem Ziel (in MB). Wird alle 
     exfrom[nr]="$(mktemp "${TMPDIR:-/tmp}/tmp.XXXX")"
 borg_create_opt[nr]=''
 cat > "${exfrom[nr]}" <<_EOF_
+# Daten vom Updater und Papierkorb nicht sichern
 /var/nextcloud_data/updater-*
-/var/nextcloud_data/*/files_trasbin/*
+/var/nextcloud_data/*/files_trashbin/*
 _EOF_
 
 
