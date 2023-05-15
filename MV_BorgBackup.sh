@@ -10,7 +10,7 @@
 # => https://paypal.me/SteBlo <= Der Betrag kann frei gewählt werden.                   #
 #                                                                                       #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-VERSION=230210
+VERSION=230515
 
 # Dieses Skript sichert / synchronisiert Verzeichnisse mit borg.
 # Dabei können beliebig viele Profile konfiguriert oder die Pfade direkt an das Skript übergeben werden.
@@ -257,7 +257,7 @@ f_monitor_free_space() {  # Prüfen ob auf dem Ziel genug Platz ist (Hintergrund
     read -r -a df_line <<< "${MAPFILE[1]}" ; df_free="${df_line[3]%M}"  # Drittes Element ist der freie Platz (M)
     # echo "-> Auf dem Ziel (${TARGET}) sind $df_free MegaByte frei! (MINFREE_BG=${MINFREE_BG})"
     if [[ $df_free -lt $MINFREE_BG ]] ; then
-      touch "${TMPDIR}/.stopflag"
+      : > "${TMPDIR}/.stopflag"
       echo -e "$msgWRN Auf dem Ziel (${TARGET}) sind nur $df_free MegaByte frei! (MINFREE_BG=${MINFREE_BG})"
       { echo "Auf dem Ziel (${TARGET}) sind nur $df_free MegaByte frei! (MINFREE_BG=${MINFREE_BG})"
         echo -e "\n\n => Die Sicherung (${TITLE}) wird abgebrochen!" ;} >> "$ERRLOG"
@@ -825,7 +825,8 @@ if [[ -n "$SHUTDOWN" ]] ; then
     || gnome-power-cmd shutdown || dcop ksmserver ksmserver logout 0 2 2 \
     || halt || shutdown --halt now
 else
-  echo -e '\n' ; "$NOTIFY" "Sicherung(en) abgeschlossen."
+  [[ -t 1 ]] && echo -e '\n'
+  "$NOTIFY" "Sicherung(en) abgeschlossen."
 fi
 
 f_exit  # Aufräumen und beenden
