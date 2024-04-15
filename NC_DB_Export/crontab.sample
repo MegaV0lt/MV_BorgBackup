@@ -1,2 +1,2 @@
-# Backup Nextcloud every Saturday at 8:35h
-35 08  * * 6  /usr/local/sbin/MV_BorgBackup.sh -c /usr/local/src/MV_BorgBackup.git/NC_DB_Export/MV_BorgBackup.conf -d 30 -e my@Qemail.de >/dev/null
+# Backup Nextcloud every saturday at 8:35h
+35 08  * * 6  /usr/local/sbin/MV_BorgBackup.sh -c /usr/local/src/MV_BorgBackup.git/NC_DB_Export/MV_BorgBackup.conf -d 30 -e my@email.de >/dev/null
