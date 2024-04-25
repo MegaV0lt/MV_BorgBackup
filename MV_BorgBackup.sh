@@ -699,7 +699,9 @@ if [[ -n "$MAILADRESS" ]] ; then
       [[ ${REPLY^^} =~ PRETTY_NAME ]] && { OSNAME="${REPLY/*=}"
         OSNAME="${OSNAME//\"/}" ; break ;}
     done < /etc/os-release
-    echo -e "\n==> Auf ${HOSTNAME^^} verwendetes Betriebssystem:\n${OSNAME:-'Unbekannt'}" >> "$MAILFILE"
+    { echo -e "\n==> Auf ${HOSTNAME^^} verwendetes Betriebssystem:\n${OSNAME:-'Unbekannt'}"
+      echo -e "\n==> Ermittelte Version von 'borg': ${BORG_VERSION[1]:-?}.${BORG_VERSION[2]:-?}.${BORG_VERSION[3]:-?}"
+    } >> "$MAILFILE"
   fi  # SHOWOS
 
   [[ "$SHOWOPTIONS" == 'true' ]] && echo -e "\n==> Folgende Optionen wurden verwendet:\n$*" >> "$MAILFILE"
