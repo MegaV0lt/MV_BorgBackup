@@ -613,6 +613,21 @@ for PROFIL in "${P[@]}" ; do
     ;;
   esac
 
+  # Partitionstabelle sichern
+  if type -p sfdisk &>/dev/null ; then        # 'sfdisk' vorhanden?
+    for source in "${SOURCE[@]}" ; do
+      mapfile -t < <(df -P "$source")
+      read -r device rest <<< "${MAPFILE[1]}"
+      : "${device#/dev/}" ; dev="${_%[1-9]}"  # /dev/ und Nummer entfernen (/dev/sda1 -> sda)
+      if ! sfdisk -d "/dev/${dev}" &> "${TARGET}/partition.table.${dev}.txt" ; then
+        dev="${dev%p}"                        # 'p' entfernen (nvme0n1p1 -> nvme0n1)
+        if ! sfdisk -d "/dev/${dev}" &> "${TARGET}/partition.table.${dev}.txt" ; then
+          echo -e "\n$msgERR Die Partitionstabelle von $dev (${device}) wurde nicht erkannt!${nc}" >&2
+        fi
+      fi
+    done
+  fi
+
   # Log-Datei, Ziel und Name des Profils merken für Mail-Versand
   [[ -n "$MAILADRESS" ]] && { LOGFILES+=("$LOG") ; TARGETS+=("$TARGET") ; USEDPROFILES+=("$TITLE") ;}
 
@@ -785,7 +800,7 @@ if [[ -n "$MAILADRESS" ]] ; then
         for var in MAILADRESS SUBJECT MAILFILE MAILARCHIV ; do
           CUSTOM_MAIL=("${CUSTOM_MAIL[@]/$var/${!var}}")  # Platzhalter ersetzen
         done
-        eval "${CUSTOM_MAIL[@]}"  # Gesamte Zeile ausführen
+        "${CUSTOM_MAIL[@]}"  # Gesamte Zeile ohne 'eval' ausführen
       ;;
       *) echo -e "\nUnbekanntes Mailprogramm: \"${MAILPROG}\"" ;;
     esac
