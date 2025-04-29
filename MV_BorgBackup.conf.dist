@@ -19,6 +19,8 @@ BORG_CREATE_OPT=(--info --stats)
 #BORG_CREATE_OPT+=(--list --filter AMCEdhs?)  # Aktivieren für ausführliche Logs
 # Allgemeine Ausschlüsse
 BORG_CREATE_OPT+=(--exclude-caches --exclude-if-present .nobackup --keep-exclude-tags)
+# Kompression
+BORG_CREATE_OPT+=(--compression auto,zstd,2)
 
 # Optionen für borg prune. https://borgbackup.readthedocs.io/en/stable/usage/prune.html
 BORG_PRUNE_OPT=(--list --stats)
