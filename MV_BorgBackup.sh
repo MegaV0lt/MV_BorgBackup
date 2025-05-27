@@ -187,26 +187,43 @@ f_settings() {
   return 0
 }
 
-f_del_old_backup() {  # Archive älter als $DEL_OLD_BACKUP Tage löschen. $1 = repository
-  local dt del_old_backup="${DEL_OLD_BACKUP:-30}"
-  printf -v dt '%(%F %R.%S)T' -1
+f_del_old_backup() {  # Log-Dateien älter als $DEL_OLD_BACKUP Tage löschen. $1 = repository
+  local -i del_old_backup="${DEL_OLD_BACKUP:-30}"
+  local -a find_opts=()
+  BORG_PRUNE_RC=0
+  BORG_COMPACT_RC=0
   echo -e "$msgINF Lösche alte Sicherungen aus ${1}…"
-  { echo -e "[${dt}] Lösche alte Sicherungen aus ${1}…\n"
+  { printf "[%(%d.%m.%Y %H:%M:%S)T] Lösche alte Sicherungen aus %s…\n" "$EPOCHSECONDS" "$1"
     export BORG_PASSPHRASE
+
+    # Alte Sicherungen löschen
     echo "borg prune ${BORG_PRUNE_OPT[*]} $1 ${BORG_PRUNE_OPT_KEEP[*]}"
-    borg prune "${BORG_PRUNE_OPT[@]}" "$1" "${BORG_PRUNE_OPT_KEEP[@]}"
-    [[ "${BORG_VERSION[1]}" -ge 1 && "${BORG_VERSION[2]}" -ge 2 ]] && borg compact "$1"  # Belegten Speicher frei geben
+    if ! borg prune "${BORG_PRUNE_OPT[@]}" "$1" "${BORG_PRUNE_OPT_KEEP[@]}" ; then
+      BORG_PRUNE_RC=$?  # Fehlercode merken
+      echo "Löschen der alten Sicherungen fehlgeschlagen! (BORG_PRUNE_OPT: ${BORG_PRUNE_OPT[*]})"
+      echo "Löschen der alten Sicherungen fehlgeschlagen! (BORG_PRUNE_OPT: ${BORG_PRUNE_OPT[*]})" >> "$ERRLOG"
+    fi
+
+    # Compacten (Ab borg Version 1.2)
+    if [[ "${BORG_VERSION[1]}" -ge 1 && "${BORG_VERSION[2]}" -ge 2 ]] ; then
+      echo "borg compact $1"
+      if ! borg compact "$1" ; then
+        BORG_COMPACT_RC=$?  # Fehlercode merken
+        echo 'Compacten der Sicherungen fehlgeschlagen!'
+        echo "Compacten der Sicherungen fehlgeschlagen!" >> "$ERRLOG"
+      fi
+    fi
+
     [[ $del_old_backup -eq 0 ]] && { echo 'Löchen von Log-Dateien ist deaktiviert!' ; return ;}
     # Logdatei(en) löschen (Wenn $TITLE im Namen)
+    find_opts=(-maxdepth 1 -type f -mtime "+$del_old_backup" -name "*${TITLE}*")
     if [[ -n "${SSH_LOG[*]}" ]] ; then
       echo "Lösche alte Logdateien (${del_old_backup} Tage) aus ${SSH_LOG[2]%/*}…"
       ssh -p "${SSH_LOG[3]:-22}" "${SSH_LOG[1]%:*}" \
-        "find ${SSH_LOG[2]%/*} -maxdepth 1 -type f -mtime +${del_old_backup} \
-          -name *${TITLE}* ! -name ${SSH_LOG[2]##*/} -delete -print"
+        "find ${SSH_LOG[2]%/*} ${find_opts[*]} ! -name ${SSH_LOG[2]##*/} -delete -print"
     else
       echo "Lösche alte Logdateien (${del_old_backup} Tage) aus ${LOG%/*}…"
-      find "${LOG%/*}" -maxdepth 1 -type f -mtime +"$del_old_backup" \
-        -name "*${TITLE}*" ! -name "${LOG##*/}" -delete -print
+      find "${LOG%/*}" "${find_opts[@]}" ! -name "${LOG##*/}" -delete -print
     fi  # -n SSH_LOG
   } &>> "$LOG"
 }
@@ -604,6 +621,10 @@ for PROFIL in "${P[@]}" ; do
           FINISHEDTEXT='abgebrochen!'  # Platte voll!
         else  # Alte Daten nur löschen wenn nicht abgebrochen wurde!
           f_del_old_backup "$R_TARGET"  # Funktion zum Löschen alter Sicherungen aufrufen
+          if [[ "$BORG_PRUNE_RC" -ne 0 || "$BORG_COMPACT_RC" -ne 0 ]] ; then
+            echo -e "$msgERR Löschen alter Sicherungen oder Kompaktieren des Repositories fehlgeschlagen! (RC: $BORG_PRUNE_RC / $BORG_COMPACT_RC)${nc}" >&2
+            BORG_PRUNE_COMPACT+=("$TITLE")  # Profilname merken
+          fi
         fi  # -e .stopflag
         if [[ "$SHOWBORGINFO" == 'true' ]] ; then  # Temporär speichern für Mail-Bericht
           tempinfo="${LOG##*/}" ; tempinfo="${tempinfo%*.log}_info.txt"
@@ -624,7 +645,8 @@ for PROFIL in "${P[@]}" ; do
       read -r device rest <<< "${MAPFILE[1]}"
       : "${device#/dev/}" ; dev="${_%[1-9]}"  # /dev/ und Nummer entfernen (/dev/sda1 -> sda)
       if ! sfdisk -d "/dev/${dev}" &> "${TARGET}/partition.table.${dev}.txt" ; then
-        dev="${dev%p}"                        # 'p' entfernen (nvme0n1p1 -> nvme0n1)
+        rm -f "${TARGET}/partition.table.${dev}.txt" &>/dev/null  # Leere Datei löschen
+        dev="${dev%p*}"                       # 'p' entfernen (nvme0n1p1 -> nvme0n1)
         if ! sfdisk -d "/dev/${dev}" &> "${TARGET}/partition.table.${dev}.txt" ; then
           echo -e "\n$msgERR Die Partitionstabelle von $dev (${device}) wurde nicht erkannt!${nc}" >&2
         fi
@@ -706,11 +728,19 @@ if [[ -n "$MAILADRESS" ]] ; then
     SUBJECT="[${HOSTNAME^^}] FEHLER bei Sicherung von $SELF_NAME"  # Neuer Betreff der Mail bei Fehlern
   fi
 
-  if [[ ${#BORGRC[@]} -ge 1 && "$SHOWERRORS" == 'true' ]] ; then  # Profile mit Fehlern anzeigen
-    echo -e '\n==> Profil(e) mit Fehler(n):' >> "$MAILFILE"
-    for i in "${!BORGRC[@]}" ; do
-      echo "${BORGPROF[i]} (Rückgabecode ${BORGRC[i]})" >> "$MAILFILE"
-    done
+  if [[ "$SHOWERRORS" == 'true' ]] ; then
+    if [[ ${#BORGRC[@]} -ge 1 ]] ; then  # Profile mit Fehlern anzeigen
+      echo -e '\n==> Profil(e) mit Fehler(n):' >> "$MAILFILE"
+      for i in "${!BORGRC[@]}" ; do
+        echo "${BORGPROF[i]} (Rückgabecode ${BORGRC[i]})" >> "$MAILFILE"
+      done
+    fi  # BORGRC
+    if [[ ${#BORG_PRUNE_COMPACT[@]} -ge 1 ]] ; then  # Profil(e) mit Fehlern beim Löschen
+      echo -e '\n==> Profil(e) mit Fehler(n) beim Löschen alter Sicherungen:' >> "$MAILFILE"
+      for i in "${!BORG_PRUNE_COMPACT[@]}" ; do
+        echo "${BORG_PRUNE_COMPACT[i]}" >> "$MAILFILE"
+      done
+    fi
   fi  # SHOWERRORS
 
   if [[ "$SHOWOS" == 'true' && -f '/etc/os-release' ]] ; then
