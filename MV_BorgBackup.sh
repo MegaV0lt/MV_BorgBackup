@@ -10,7 +10,7 @@
 # => https://paypal.me/SteBlo <= Der Betrag kann frei gewählt werden.                   #
 #                                                                                       #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-VERSION=230515
+VERSION=230528
 
 # Dieses Skript sichert / synchronisiert Verzeichnisse mit borg.
 # Dabei können beliebig viele Profile konfiguriert oder die Pfade direkt an das Skript übergeben werden.
@@ -620,7 +620,7 @@ for PROFIL in "${P[@]}" ; do
         if [[ -e "${TMPDIR}/.stopflag" ]] ; then
           FINISHEDTEXT='abgebrochen!'  # Platte voll!
         else  # Alte Daten nur löschen wenn nicht abgebrochen wurde!
-          f_del_old_backup "$R_TARGET"  # Funktion zum Löschen alter Sicherungen aufrufen
+          [[ "$RC" -lt 2 ]] && f_del_old_backup "$R_TARGET"  # Funktion zum Löschen alter Sicherungen aufrufen
           if [[ "$BORG_PRUNE_RC" -ne 0 || "$BORG_COMPACT_RC" -ne 0 ]] ; then
             echo -e "$msgERR Löschen alter Sicherungen oder Kompaktieren des Repositories fehlgeschlagen! (RC: $BORG_PRUNE_RC / $BORG_COMPACT_RC)${nc}" >&2
             BORG_PRUNE_COMPACT+=("$TITLE")  # Profilname merken
@@ -730,10 +730,11 @@ if [[ -n "$MAILADRESS" ]] ; then
 
   if [[ "$SHOWERRORS" == 'true' ]] ; then
     if [[ ${#BORGRC[@]} -ge 1 ]] ; then  # Profile mit Fehlern anzeigen
-      echo -e '\n==> Profil(e) mit Fehler(n):' >> "$MAILFILE"
+      echo -e '\n==> Profil(e) mit Fehler(n) bei Sicherung:' >> "$MAILFILE"
       for i in "${!BORGRC[@]}" ; do
         echo "${BORGPROF[i]} (Rückgabecode ${BORGRC[i]})" >> "$MAILFILE"
       done
+      echo -e '--> Rückgabecodes ab 2 sind schwere Fehler (siehe Log)' >> "$MAILFILE"
     fi  # BORGRC
     if [[ ${#BORG_PRUNE_COMPACT[@]} -ge 1 ]] ; then  # Profil(e) mit Fehlern beim Löschen
       echo -e '\n==> Profil(e) mit Fehler(n) beim Löschen alter Sicherungen:' >> "$MAILFILE"
