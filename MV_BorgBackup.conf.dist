@@ -202,8 +202,17 @@ POST_ACTION=''
 #   /var/spool/lpd//cf  schließt Dateien auf, die mit cf beginnen und
 #                       im Ordner /var/spool/lpd sind
 #cat > "${exfrom[nr]}" <<_EOF_
-#lost+found/
-#tmp/
+## Exclude system directories (if backing up root)
+#/proc/*
+#/sys/*
+#/dev/*
+#/tmp/*
+#/var/tmp/*
+#/var/cache/*
+#
+## Exclude other system directories
+#*/lost+found/
+#*/tmp/
 #_EOF_
 
 nr=0  # Für die Nummerierung der Profile
