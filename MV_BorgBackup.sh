@@ -310,7 +310,7 @@ f_borg_init() {
     echo "Versuche das Repository anzulegen…"
     export BORG_PASSPHRASE
     if ! borg init "${BORG_INIT_OPT[@]}" "$borg_repo" &>/dev/null ; then
-      echo -e "$msgERR Anlegen des Repostorys fehlgeschlagen!${nc}" ; f_exit 1
+      echo -e "$msgERR Anlegen des Repostories fehlgeschlagen!${nc}" ; f_exit 1
     fi
     borg info --verbose "$borg_repo" &>> "$LOG"  # Daten in das Log
   fi

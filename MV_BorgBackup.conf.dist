@@ -15,12 +15,12 @@ printf -v DT_NOW '%(%F_%H%M)T' -1  # JJJJ-MM-DD_HHMM (2017-10-19_1107)
 
 # Optionen für borg; Verzeichnisse dürfen nicht angegeben werden
 # Vorgabewerte; Müssen normalerweise nicht geändert werden. https://borgbackup.readthedocs.io/en/stable/usage/create.html
-BORG_CREATE_OPT=(--info --stats)
+BORG_CREATE_OPT=(--info --stats --show-version --show-rc)
 #BORG_CREATE_OPT+=(--list --filter AMCEdhs?)  # Aktivieren für ausführliche Logs
 # Allgemeine Ausschlüsse
 BORG_CREATE_OPT+=(--exclude-caches --exclude-if-present .nobackup --keep-exclude-tags)
 # Kompression
-BORG_CREATE_OPT+=(--compression auto,zstd,2)
+BORG_CREATE_OPT+=(--compression auto,zstd,3)
 
 # Optionen für borg prune. https://borgbackup.readthedocs.io/en/stable/usage/prune.html
 BORG_PRUNE_OPT=(--list --stats)
