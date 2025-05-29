@@ -204,13 +204,13 @@ f_del_old_backup() {  # Log-Dateien älter als $DEL_OLD_BACKUP Tage löschen. $1
       echo "Löschen der alten Sicherungen fehlgeschlagen! (BORG_PRUNE_OPT: ${BORG_PRUNE_OPT[*]})" >> "$ERRLOG"
     fi
 
-    # Compacten (Ab borg Version 1.2)
+    # Gelöschten Speicher freigeben (Ab borg Version 1.2)
     if [[ "${BORG_VERSION[1]}" -ge 1 && "${BORG_VERSION[2]}" -ge 2 ]] ; then
       echo "borg compact $1"
       if ! borg compact "$1" ; then
         BORG_COMPACT_RC=$?  # Fehlercode merken
-        echo 'Compacten der Sicherungen fehlgeschlagen!'
-        echo "Compacten der Sicherungen fehlgeschlagen!" >> "$ERRLOG"
+        echo 'Freigeben des Speichers fehlgeschlagen!'
+        echo "Freigeben des Speichers fehlgeschlagen!" >> "$ERRLOG"
       fi
     fi
 
@@ -639,7 +639,7 @@ for PROFIL in "${P[@]}" ; do
   esac
 
   # Partitionstabelle sichern
-  if type -p sfdisk &>/dev/null ; then        # 'sfdisk' vorhanden?
+  if [[ "$EUID" -eq 0 ]] && type -p sfdisk &>/dev/null ; then  # 'sfdisk' vorhanden?
     for source in "${SOURCE[@]}" ; do
       mapfile -t < <(df -P "$source")
       read -r device rest <<< "${MAPFILE[1]}"
