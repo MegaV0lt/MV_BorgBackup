@@ -698,14 +698,14 @@ done
 
 [[ -n "$SHUTDOWN" ]] && echo -e "  \e[1;31mDer Computer wird nach Durchführung der Sicherung(en) automatisch heruntergefahren!${nc}"
 
-# Prüfen, ob BORG_BIN gesetzt ist
-[[ -n "$BORG_BIN" ]] && f_validate_path "$BORG_BIN" "general" || {
-  echo -e "$msgERR BORG_BIN (${BORG_BIN:-LEER}) nicht gesetzt oder nicht gefunden!{nc}" >&2
+# Prüfen, ob BORG_BIN gültig ist
+ if ! f_validate_path "${BORG_BIN:=borg}" "general" ; then
+  # Wenn BORG_BIN nicht gesetzt ist, dann wird nach "borg" gesucht
   f_exit 1
-}
+fi
 
 # Sind die benötigen Programme installiert?
-NEEDPROGS=(find mktemp)
+NEEDPROGS=(find mktemp "$BORG_BIN")
 [[ -n "$FTPSRC" ]] && NEEDPROGS+=(curlftpfs)
 if [[ -n "$MAILADRESS" ]] ; then
   [[ "${MAILPROG^^}" == 'CUSTOMMAIL' ]] && { NEEDPROGS+=("${CUSTOM_MAIL[0]}") ;} || NEEDPROGS+=("$MAILPROG")

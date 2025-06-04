@@ -9,6 +9,15 @@ lassen: => http://paypal.me/SteBlo
 Der Betrag kann frei gewählt werden. Vorschlag: 2 EUR
 
 
+2025-06-04
+Update MV_BorgBackup configuration and documentation for Borg 2.x compatibility
+
+- Changed default Borg binary to 'borg2' in MV_BorgBackup.conf.sample
+- Updated Borg create and prune options to include --show-version and --show-rc
+- Increased compression level from 2 to 3 for better performance
+- Added new options for Borg repository creation in the configuration
+- Revised README.md to highlight support for Borg 1.x and 2.x, and added a note to read ReadMe-Borg2.txt
+- Created ReadMe-Borg2.txt with important information regarding the transition from Borg 1.x to 2.x
 2025-05-29 Aktualisiere Borg-Optionen: Füge --show-version und --show-rc hinzu; erhöhe Kompressionsstufe auf 3. Korrigiere Schreibfehler in Fehlermeldung beim Anlegen des Repositories.
 2025-05-29 Verbessere Fehlermeldungen beim Löschen alter Sicherungen und aktualisiere Kommentare zur Speicherfreigabe
 2025-05-29 Füge Ausschlüsse für Systemverzeichnisse in die Konfigurationsdatei ein

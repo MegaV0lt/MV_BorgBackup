@@ -11,7 +11,7 @@
 
 # Welches 'borg' soll verwendet werden? ACHTUNG: Repositories von borg ab Version 2.0 sind
 # nicht kompatibel mit borg repositories bis 1.x. https://borgbackup.readthedocs.io/en/latest/usage/transfer.html
-BORG_BIN='borg2'  # borg oder borg2 
+BORG_BIN='borg'  # borg (Vorgabe) oder borg2 
 
 # Optionen für borg; Verzeichnisse dürfen nicht angegeben werden
 # Vorgabewerte; Müssen normalerweise nicht geändert werden. https://borgbackup.readthedocs.io/en/stable/usage/create.html
@@ -19,7 +19,7 @@ BORG_CREATE_OPT=(--info --stats --show-version --show-rc)
 #BORG_CREATE_OPT+=(--list --filter AMCEdhs?)  # Aktivieren für ausführliche Logs
 # Allgemeine Ausschlüsse
 BORG_CREATE_OPT+=(--exclude-caches --exclude-if-present .nobackup --keep-exclude-tags)
-# Kompression
+# Kompression. https://borgbackup.readthedocs.io/en/stable/usage/create.html#compression
 BORG_CREATE_OPT+=(--compression auto,zstd,3)
 
 # Optionen für borg prune. https://borgbackup.readthedocs.io/en/stable/usage/prune.html
