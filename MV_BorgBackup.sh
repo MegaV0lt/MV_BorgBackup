@@ -300,8 +300,6 @@ f_configure_profile_defaults() {  # Standardwerte setzen
   : "${TITLE:=Profil_${ARG}}"  # Wenn Leer, dann Profil_ gefolgt von Parameter
   : "${LOG:=${TMPDIR}/${SELF_NAME%.*}_${DT_NOW}.log}"  # Temporäre Logdatei
   ERRLOG="${LOG%.*}.err.log"                 # Fehlerlog im Logverzeichnis der Sicherung
-  echo "BORG_VERSION: ${BORG_VERSION[*]}"  # !DEBUG
-  echo "FILES_DIR: ${FILES_DIR}"  # !DEBUG
   if [[ "${BORG_VERSION[1]}" -ge 2 ]] ; then
     : "${FILES_DIR:=borg2_repository}"       # Vorgabe für Sicherungsordner
     : "${ARCHIV:=${TITLE}}"                  # Vorgabe für Archivname (Borg 2.x)
@@ -310,7 +308,6 @@ f_configure_profile_defaults() {  # Standardwerte setzen
     : "${ARCHIV:="{now:%Y-%m-%d_%H:%M}"}"    # Vorgabe für Archivname (Borg)
     ARCHIV="${TITLE}_${ARCHIV}"              # Name des Profils als Prefix im Archiv
   fi
-  echo "FILES_DIR: ${FILES_DIR}"  # !DEBUG
 }
 
 f_settings() {
@@ -593,10 +590,24 @@ else
   NOTIFY='echo'
 fi
 
+# Borg Version auslesen und speichern
+IFS=' .' read -r -a BORG_VERSION < <(${BORG_BIN} --version)  # borg 1 1 17
+# Beta-Versionen werden nicht unterstützt
+#if [[ "${BORG_VERSION[3]}" =~ ^[0-9] ]] ; then  # !DEBUG
+#  echo -e "$msgERR Borg Testversionen werden nicht unterstützt! (Aktuell: ${BORG_VERSION[*]})" >&2
+#  f_exit 1
+#fi
+# Ab Borg 1.4.x detailiertere Warnungen und Fehlermeldungen ausgegeben
+if [[ ${BORG_VERSION[1]} -eq 1 || ${BORG_VERSION[2]} -ge '4' ]] ; then
+  export BORG_EXIT_CODES='modern'  # Vorgabe ab Borg 2.0.0
+fi
+
+# --- START ANZEIGE ---
 tty --silent && clear
 echo -e "\e[44m \e[0;1m MV_BorgBackup${nc}\e[0;32m => Version: ${VERSION}${nc} by MegaV0lt"
 # Anzeigen, welche Konfiguration geladen wurde!
-echo -e "\e[46m $nc $CONFLOADED Konfiguration:\e[1m ${CONFIG}${nc}\n"
+echo -e "\e[46m $nc $CONFLOADED Konfiguration:\e[1m ${CONFIG}${nc}"
+echo -e "\e[46m $nc Verwende: ${BORG_VERSION[0]} ${BORG_VERSION[1]}.${BORG_VERSION[2]}.${BORG_VERSION[3]}\n"
 [[ $EUID -ne 0 ]] && echo -e "$msgWRN Skript ohne root-Rechte gestartet!"
 
 # Symlink /dev/fd fehlt bei manchen Systemen (BSD, OpenWRT, ...). https://bugzilla.redhat.com/show_bug.cgi?id=814850
@@ -718,18 +729,6 @@ done
 if [[ -n "${MISSING[*]}" ]] ; then  # Fehlende Programme anzeigen
   echo -e "$msgERR Sie benötigen \"${MISSING[*]}\" zur Ausführung dieses Skriptes!" >&2
   f_exit 1
-fi
-
-# Borg Version auslesen und speichern
-IFS=' .' read -r -a BORG_VERSION < <(${BORG_BIN} --version)  # borg 1 1 17
-# Beta-Versionen werden nicht unterstützt
-#if [[ "${BORG_VERSION[3]}" =~ ^[0-9] ]] ; then  # !DEBUG
-#  echo -e "$msgERR Borg Testversionen werden nicht unterstützt! (Aktuell: ${BORG_VERSION[*]})" >&2
-#  f_exit 1
-#fi
-# Ab Borg 1.4.x detailiertere Warnungen und Fehlermeldungen ausgegeben
-if [[ ${BORG_VERSION[1]} -eq 1 || ${BORG_VERSION[2]} -ge '4' ]] ; then
-  export BORG_EXIT_CODES='modern'  # Vorgabe ab Borg 2.0.0
 fi
 
 for PROFIL in "${P[@]}" ; do  # Anzeige der Einstellungen
