@@ -9,15 +9,57 @@ lassen: => http://paypal.me/SteBlo
 Der Betrag kann frei gewählt werden. Vorschlag: 2 EUR
 
 
-2022.01.31
-  - Erste Version des von MV_Backup stammenden Skripts, das borg zum sichern verwendet
-2022.02.04
-  - Sicherung auf SSH-Host ist nun möglich. Löschen von alten Logdateien auf dem SSH-Host
-    wird (noch) nicht unterstützt
-  - Sicherung von Dateizugriffskontrollisten (ACL) entfernt
-2022.02.05
-  - Löschen von alten Log-Dateien über SSH
-  - Name des Profils als Prefix für das Archiv
-2022.02.09
- - Löschen von alten Log-Dateien kann deaktiviert werden (-d 0)
-
+2025-05-29 Aktualisiere Borg-Optionen: Füge --show-version und --show-rc hinzu; erhöhe Kompressionsstufe auf 3. Korrigiere Schreibfehler in Fehlermeldung beim Anlegen des Repositories.
+2025-05-29 Verbessere Fehlermeldungen beim Löschen alter Sicherungen und aktualisiere Kommentare zur Speicherfreigabe
+2025-05-29 Füge Ausschlüsse für Systemverzeichnisse in die Konfigurationsdatei ein
+2025-05-28 Füge Bedingung für das Löschen alter Sicherungen hinzu und verbessere Fehlermeldungen in der E-Mail-Benachrichtigung
+2025-05-27 Verbessere die Funktion zum Löschen alter Sicherungen: Fehlerbehandlung und Logging
+ hinzugefügt
+2025-05-08 Borg-Version-Überprüfung aktualisiert: Unterstützung für Borg bis Version 1.x.x hinzugefügt
+2025-05-01 Update MV_BorgBackup.conf.sample
+2025-04-29 Update MV_BorgBackup.conf.dist
+2024-10-18 Partitionstabelle mit 'sfdisk' sichern
+2024-04-25 Add borg version to mail
+2024-04-15 Small changes
+2023-05-15 Small changes
+2023-05-08 Update MV_BorgBackup.conf.sample
+2023-04-30 Update NC_DB_Export.sh
+2023-04-30 Create crontab.sample
+2023-04-24 Add NC_DB_Export
+2023-04-04 Exit when borg version is above 1.2.x
+2023-02-10 small changes
+2023-01-11 Use local nameref to avoid using command substitution
+2022-08-16 Create FUNDING.yml
+2022-04-07 Change 'Shebang'
+2022-03-20 Versionserkennung vereinfacht
+2022-03-14 Borg info zum Mailbericht hinzugefügt
+2022-02-27 Erkennung der Borg Version
+2022-02-21 Option für borg ab 1.2.0
+2022-02-20 Update Optionen
+2022-02-19 Ausgabe mit Name
+2022-02-15 Add files via upload
+2022-02-13 Add files via upload
+2022-02-09 Löschen von Log-Dateien kann deaktiviert werden
+2022-02-08 Add files via upload
+2022-02-05 Add files via upload
+2022-02-04 Update README.md
+2022-02-04 Sicherung von Dateizugriffskontrolllisten (ACL) entfernt
+2022-02-04 Sicherung auf SSH-Host
+2022-02-01 Kleinere Änderungen
+2022-02-01 Update MV_BorgBackup.sh
+2022-02-01 Update MV_BorgBackup.conf.dist
+2022-02-01 Update MV_BorgBackup.sh
+2022-02-01 Option für ausführliches Logging
+2022-01-31 Update README.md
+2022-01-31 Delete help.png
+2022-01-31 Veraltete Option ersetzt
+2022-01-31 Delete Sicherungs-Bericht.png
+2022-01-31 Update README.md
+2022-01-31 Add files via upload
+2022-01-31 Delete Sicherungs-Bericht.png.png
+2022-01-31 Typo
+2022-01-31 Allgemeine Ausschlüsse hinzugefügt
+2022-01-31 Add files via upload
+2022-01-31 Create .gitignore
+2022-01-31 Delete MV_BorgBackup.conf
+2022-01-31 Add files via upload

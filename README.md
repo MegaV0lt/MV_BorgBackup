@@ -9,6 +9,7 @@ Abgeänderte Version meines Backup-Skripts "MV_Backup". Vorteile durch die Verwe
 - Sicherungen werden komprimiert
 - Sicherungen können verschlüsselt gespeichert werden
 - "Deduplizierung" von Inhalten
+- Sicherungen können mit 'borg mount' einfach eingehängt werden
 
 Zusätzliche Funktionen sind unter Anderem:
 - Automatisches Ein- und Aushängen des Sicherungs-Ziels, wenn in der fstab vorhanden (noauto)
@@ -19,6 +20,7 @@ Zusätzliche Funktionen sind unter Anderem:
 - eMail-Bericht mit Angaben zu Fehlern, Belegung der Sicherungen und der Sicherungsziele (Auflistung abschaltbar)
 - Sicherungsziel kann Profilabhängig definiert werden (mount[])
 - Verschiedene Möglichkeiten den freien Platz auf dem Ziellaufwerk zu überwachen
+- Verwendung von borg 1.x oder borg 2.x möglich. HINWEIS: Unbedingt ReadMe-Borg2.txt lesen!
 
 ![help](https://user-images.githubusercontent.com/2804301/151806725-1e939d46-3dff-4184-856f-1b4d293d1245.png)
 

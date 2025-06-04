@@ -9,26 +9,29 @@
 ### Hinweis zum ausfüllen: Wenn Variablen ($) verwendet werden,
 ### dann in doppelten " ansonsten können einfache ' benutzt werden
 
-# Datum in Variable speichern (Für Logs usw.)
-printf -v DT_TODAY '%(%F)T' -1  # JJJJ-MM-DD (2017-10-19)
-printf -v DT_NOW '%(%F_%H%M)T' -1  # JJJJ-MM-DD_HHMM (2017-10-19_1107)
+# Welches 'borg' soll verwendet werden? ACHTUNG: Repositories von borg ab Version 2.0 sind
+# nicht kompatibel mit borg repositories bis 1.x. https://borgbackup.readthedocs.io/en/latest/usage/transfer.html
+BORG_BIN='borg2'  # borg oder borg2 
 
 # Optionen für borg; Verzeichnisse dürfen nicht angegeben werden
 # Vorgabewerte; Müssen normalerweise nicht geändert werden. https://borgbackup.readthedocs.io/en/stable/usage/create.html
-BORG_CREATE_OPT=(--filter AMCE? --stats --list --verbose)
+BORG_CREATE_OPT=(--filter AMCE? --stats --list --verbose --show-version --show-rc)
 # Allgemeine Ausschlüsse
 BORG_CREATE_OPT+=(--exclude-caches --exclude-if-present .nobackup --keep-exclude-tags)
 # Kompression
-BORG_CREATE_OPT+=(--compression auto,zstd,2)
+BORG_CREATE_OPT+=(--compression auto,zstd,3)
 
 # Optionen für borg prune. https://borgbackup.readthedocs.io/en/stable/usage/prune.html
-BORG_PRUNE_OPT=(--list --stats)
+BORG_PRUNE_OPT=(--list --stats --show-rc)
 # Welche Archive sollen behalten werden. Beispiele:
 #BORG_PRUNE_OPT_KEEP=(--keep-within 30d)  # Backups der letzten 30 Tage behalten
 BORG_PRUNE_OPT_KEEP=(--keep-within=1d --keep-daily=7 --keep-weekly=4 --keep-monthly=12)
 
 # Optionen für borg init. https://borgbackup.readthedocs.io/en/stable/usage/init.html
 BORG_INIT_OPT=(--encryption=authenticated-blake2 --make-parent-dirs)
+
+# Optionen für borg repro_create (borg 2.0). https://borgbackup.readthedocs.io/en/latest/usage/repo-create.html
+BORG_REPRO_CREATE_OPT=(--encryption repokey-aes-ocb)
 
 export BORG_UNKNOWN_UNENCRYPTED_REPO_ACCESS_IS_OK=yes  # 'yes' oder 'no' (default)
 # Für “Warning: Attempting to access a previously unknown unencrypted repository”
@@ -44,9 +47,9 @@ export BORG_RELOCATED_REPO_ACCESS_IS_OK=yes            # 'yes' oder 'no' (defaul
 #MOUNT='/mnt/remote_ftp'  # Einhängepunkt für externen FTP (Muss in der fstab definiert sein )
 MOUNT="$(readlink -m /mnt/usbdisk)"  # Falls Einhängepunkt ein Symlink ist
 
-# [optional] Ordner in dem die Sicherung gespeichert wird. Vorgabe ist "borg_repository"
+# [optional] Ordner in dem die Sicherung gespeichert wird.
 # Der Ordner wird im Sicherungsziel ($TARGET) angelegt. Nur Name angeben; keine "/"
-#FILES_DIR='borg_repository'
+#FILES_DIR='borg_repository'  # Vorgabe ist "borg_repository" bzw. "borg2_repository"
 
 # [optional] Zusätzlicher Suchpfad für das Skript, um Programme wie "find" oder
 # "curlftpfs" zu finden. Beispiel: PATH="/opt/bin:${PATH}" - Fügt "/opt/bin" am Anfang ein.
@@ -57,6 +60,10 @@ MOUNT="$(readlink -m /mnt/usbdisk)"  # Falls Einhängepunkt ein Symlink ist
 # [optional] Zeitabstand in Sekunden, in der der Hintergrundprozess (siehe minfree_bg[])
 # den freien Speicherplatz auf dem Ziel überprüft. Vorgabe ist 5 Minuten
 #MFS_TIMEOUT=$((5*60))  # Zeit in Sekunden
+
+# Datum in Variable speichern (Für Logs usw.)
+printf -v DT_TODAY '%(%F)T' -1  # JJJJ-MM-DD (2017-10-19)
+printf -v DT_NOW '%(%F_%H%M)T' -1  # JJJJ-MM-DD_HHMM (2017-10-19_1107)
 
 ############################### EMAIL KONFIGURATION #####################################
 
@@ -158,7 +165,9 @@ POST_ACTION='/usr/local/src/MV_BorgBackup/NC_DB_Export/NC_DB_Export.sh after'
 # ${mount[nr]} leer ist. Muss eindeutig sein! Pfade nicht mehrfach verwenden!
 #target[nr]="${mount[nr]:-$MOUNT}/_Backup/VDR/Data"
 
-# [optional] Borg-Archivname. Vorgabe ist {now:%Y-%m-%d_%H:%M}
+# [optional] Borg-Archivname.
+# Vorgabe bei borg ist {now:%Y-%m-%d_%H:%M}. $title[nr] wird vorangestellt
+# Vorgabe bei borg2 ist $title[nr]
 #archiv[nr]=''
 
 # Borg Passphrase für das Archiv
