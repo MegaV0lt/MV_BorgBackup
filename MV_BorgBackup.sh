@@ -305,8 +305,7 @@ f_configure_profile_defaults() {  # Standardwerte setzen
     : "${ARCHIV:=${TITLE}}"                  # Vorgabe für Archivname (Borg 2.x)
   else
     : "${FILES_DIR:=borg_repository}"        # Vorgabe für Sicherungsordner (Borg 1.x)
-    : "${ARCHIV:="{now:%Y-%m-%d_%H:%M}"}"    # Vorgabe für Archivname (Borg)
-    ARCHIV="${TITLE}_${ARCHIV}"              # Name des Profils als Prefix im Archiv
+    : "${ARCHIV:="${TITLE}_{now:%Y-%m-%d_%H:%M}"}"  # Vorgabe für Archivname (Borg)
   fi
 }
 
