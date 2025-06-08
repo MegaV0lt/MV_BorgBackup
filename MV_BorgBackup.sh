@@ -33,7 +33,7 @@ declare -a BORG_CREATE_OPT BORGPROF BORGRC BORG_VERSION ERRLOGS LOGFILES
 declare -a SSH_ERRLOG SSH_LOG SSH_TARGET UNMOUNT  # Einige Array's
 declare -A _arg _target
 msgERR='\e[1;41m FEHLER! \e[0;1m' ; nc="\e[0m"  # Anzeige "FEHLER!" ; Reset der Farben
-msgRED='\e[41m \e[0m'                           # " " mit rotem Hintergrund
+msgRED='\e[41m \e[0m' ; msgCYN='\e[46m \e[0m'   # " " mit rotem/cyan Hintergrund
 msgINF='\e[42m \e[0m' ; msgWRN='\e[103m \e[0m'  # " " mit grünem/gelben Hintergrund
 
 # --- FUNKTIONEN ---
@@ -405,7 +405,7 @@ f_countdown_wait() {
   if [[ -t 1 ]] ; then
     # Länge des Strings [80] plus alle Steuerzeichen [21] (ohne \)
     printf '%-101b' "\n\e[30;46m  Profil \e[97m${TITLE}\e[30;46m wird in 5 Sekunden gestartet" ; printf '%b\n' '\e[0m'
-    echo -e "\e[46m $nc Zum Abbrechen [Strg] + [C] drücken\n\e[46m $nc Zum Pausieren [Strg] + [Z] drücken (Fortsetzen mit \"fg\")\n"
+    echo -e "$msgCYN Zum Abbrechen [Strg] + [C] drücken\n$msgCYN Zum Pausieren [Strg] + [Z] drücken (Fortsetzen mit \"fg\")\n"
     for i in {5..1} ; do  # Countdown ;)
       echo -e -n "\rStart in \e[97;44m  $i  ${nc} Sekunden"
       sleep 1
@@ -607,8 +607,8 @@ fi
 tty --silent && clear
 echo -e "\e[44m \e[0;1m MV_BorgBackup${nc}\e[0;32m => Version: ${VERSION}${nc} by MegaV0lt"
 # Anzeigen, welche Konfiguration geladen wurde!
-echo -e "\e[46m $nc $CONFLOADED Konfiguration:\e[1m ${CONFIG}${nc}"
-echo -e "\e[46m $nc Verwende: ${BORG_VERSION[0]} ${BORG_VERSION[1]}.${BORG_VERSION[2]}.${BORG_VERSION[3]}"
+echo -e "$msgCYN $CONFLOADED Konfiguration:\e[1m ${CONFIG}${nc}"
+echo -e "$msgCYN Verwende: ${BORG_VERSION[0]} ${BORG_VERSION[1]}.${BORG_VERSION[2]}.${BORG_VERSION[3]}"
 [[ $EUID -ne 0 ]] && echo -e "$msgWRN Skript ohne Root-Rechte gestartet!"
 
 # Beta-Versionen werden nicht unterstützt
@@ -746,18 +746,18 @@ for PROFIL in "${P[@]}" ; do  # Anzeige der Einstellungen
   # Konfiguration zu allen gewählten Profilen anzeigen
   # Länge des Strings [80] plus alle Steuerzeichen [14] (ohne \)
   printf '%-94b' "\n\e[30;46m  Konfiguration von:    \e[97m${TITLE} $msgAUTO" ; printf '%b\n' "$nc"
-  echo -e "\e[46m $nc Sicherungsmodus:\e[1m\t${MODE_TXT}${nc}"
-  echo -e "\e[46m $nc Quellverzeichnis(se):\e[1m\t${SOURCE[*]}${nc}"
-  echo -e "\e[46m $nc Zielverzeichnis:\e[1m\t${TARGET}${nc}"
-  echo -e "\e[46m $nc Log-Datei:\e[1m\t\t${SSH_LOG[0]:-${LOG}}${nc}"
+  echo -e "$msgCYN Sicherungsmodus:\e[1m\t${MODE_TXT}${nc}"
+  echo -e "$msgCYN Quellverzeichnis(se):\e[1m\t${SOURCE[*]}${nc}"
+  echo -e "$msgCYN Zielverzeichnis:\e[1m\t${TARGET}${nc}"
+  echo -e "$msgCYN Log-Datei:\e[1m\t\t${SSH_LOG[0]:-${LOG}}${nc}"
   if [[ "$PROFIL" != 'customBak' ]] ; then
-    echo -e "\e[46m $nc Ausschluss:"
+    echo -e "$msgCYN Ausschluss:"
     while read -r ; do
-      echo -e "\e[46m ${nc}\t\t\t${REPLY}"
+      echo -e "${msgCYN}\t\t\t${REPLY}"
     done < "$EXFROM"
   fi
   if [[ -n "$MAILADRESS" ]] ; then  # eMail-Adresse ist angegeben
-    echo -e -n "\e[46m $nc eMail-Versand an:\e[1m\t${MAILADRESS}${nc}"
+    echo -e -n "$msgCYN eMail-Versand an:\e[1m\t${MAILADRESS}${nc}"
     [[ "$MAILONLYERRORS" == 'true' ]] && { echo ' [NUR bei Fehler(n)]' ;} || echo ''
   elif [[ "$MAILONLYERRORS" == 'true' ]] ; then
     echo -e "\e[1;43m $nc Es wurde \e[1mkeine eMail-Adresse${nc} für den Versand bei Fehler(n) angegeben!\n"
