@@ -33,6 +33,7 @@ declare -a BORG_CREATE_OPT BORGPROF BORGRC BORG_VERSION ERRLOGS LOGFILES
 declare -a SSH_ERRLOG SSH_LOG SSH_TARGET UNMOUNT  # Einige Array's
 declare -A _arg _target
 msgERR='\e[1;41m FEHLER! \e[0;1m' ; nc="\e[0m"  # Anzeige "FEHLER!" ; Reset der Farben
+msgRED='\e[41m \e[0m'                           # " " mit rotem Hintergrund
 msgINF='\e[42m \e[0m' ; msgWRN='\e[103m \e[0m'  # " " mit grünem/gelben Hintergrund
 
 # --- FUNKTIONEN ---
@@ -58,7 +59,7 @@ f_exit() {  # Beenden und aufräumen $1 = ExitCode
   if [[ "$EXIT" -ge 1 ]] ; then
     set -o posix ; set  > "/tmp/${SELF_NAME%.*}.env"  # Variablen speichern
     echo -e "$msgINF Skript- und Umgebungsvariablen wurden in \"/tmp/${SELF_NAME%.*}.env\" gespeichert!"
-    [[ $EUID -ne 0 ]] && echo -e "$msgWRN Skript ohne root-Rechte gestartet!"
+    [[ $EUID -ne 0 ]] && echo -e "$msgWRN Skript ohne Root-Rechte gestartet!"
   fi
   [[ -n "${exfrom[*]}" ]] && rm "${exfrom[@]}" &>/dev/null
   [[ -d "$TMPDIR" ]] && rm --recursive --force "$TMPDIR" &>/dev/null  # Ordner für temporäre Dateien
@@ -121,42 +122,42 @@ f_validate_path() {
     local path="$1" path_type="${2:-general}" max_length="${3:-4096}"
     
     # Eingabewert prüfen
-    [[ -z "$path" ]] && { echo "Kein Pfad angegeben" >&2; return 1; }
-    [[ ${#path} -gt $max_length ]] && { echo "Pfad zu lang (>${max_length} Zeichen)" >&2; return 1; }
+    [[ -z "$path" ]] && { echo -e "$msgRED Kein Pfad angegeben" >&2; return 1; }
+    [[ ${#path} -gt $max_length ]] && { echo -e "$msgRED Pfad zu lang (>${max_length} Zeichen)" >&2; return 1; }
     
     # Sicherheitsüberprüfungen - Verhindern von Pfad-Traversierung und gefährlichen Mustern
     if [[ "$path" =~ \.\./|/\.\./|^\.\./|/\.\.$ ]]; then
-        echo "Pfad traversiert: $path" >&2
+        echo -e "$msgRED Pfad traversiert: $path" >&2
         return 1
     fi
     
     # Überprüfung auf Steuerzeichen und gefährliche Sequenzen
     if [[ "$path" =~ [[:cntrl:]] || "$path" =~ [\$\\\`\;\|\&\<\>] ]]; then
-        echo "Gefährliche Zeichen in Pfad: $path" >&2
+        echo -e "$msgRED Gefährliche Zeichen in Pfad: $path" >&2
         return 1
     fi
     
     # Typspezifische Überprüfung
     case "$path_type" in
         source)
-            [[ -d "$path" || -f "$path" ]] || { echo "Quellverzeichnis nicht gefunden: $path" >&2; return 1; }
-            [[ -r "$path" ]] || { echo "Quellverzeichnis nicht lesbar: $path" >&2; return 1; }
+            [[ -d "$path" || -f "$path" ]] || { echo -e "$msgRED Quellverzeichnis nicht gefunden: $path" >&2; return 1; }
+            [[ -r "$path" ]] || { echo -e "$msgRED Quellverzeichnis nicht lesbar: $path" >&2; return 1; }
             ;;
         target)
             local parent_dir="${path%/*}"
-            [[ -d "$parent_dir" ]] || { echo "Zielverzeichnis nicht gefunden: $parent_dir" >&2; return 1; }
-            [[ -w "$parent_dir" ]] || { echo "Zielverzeichnis nicht beschreibbar: $parent_dir" >&2; return 1; }
+            [[ -d "$parent_dir" ]] || { echo -e "$msgRED Zielverzeichnis nicht gefunden: $parent_dir" >&2; return 1; }
+            [[ -w "$parent_dir" ]] || { echo -e "$msgRED Zielverzeichnis nicht beschreibbar: $parent_dir" >&2; return 1; }
             ;;
         config)
-            [[ -f "$path" ]] || { echo "Konfigurationsdatei nicht gefunden: $path" >&2; return 1; }
-            [[ -r "$path" ]] || { echo "Konfigurationsdatei nicht lesbar: $path" >&2; return 1; }
+            [[ -f "$path" ]] || { echo -e "$msgRED Konfigurationsdatei nicht gefunden: $path" >&2; return 1; }
+            [[ -r "$path" ]] || { echo -e "$msgRED Konfigurationsdatei nicht lesbar: $path" >&2; return 1; }
             ;;
         ssh)
             # SSH Pfad Format: user@host:/path
             if [[ "$path" =~ ^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+:[/a-zA-Z0-9._/-]+$ ]]; then
                 return 0
             else
-                echo "Ungültiger SSH-Pfad: $path" >&2
+                echo -e "$msgRED Ungültiger SSH-Pfad: $path" >&2
                 return 1
             fi
             ;;
@@ -168,12 +169,12 @@ f_validate_path() {
 f_validate_email() {
     local email="$1"
     
-    [[ -z "$email" ]] && { echo "Keine eMail angegeben" >&2; return 1; }    
+    [[ -z "$email" ]] && { echo -e "$msgRED Keine eMail angegeben" >&2; return 1; }    
     # Basic email validation (RFC 5322 simplified)
     if [[ "$email" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
       return 0
     else
-      echo "Ungültige eMail: $email" >&2
+      echo -e "$msgRED Ungültige eMail: $email" >&2
       return 1
     fi
 }
@@ -181,17 +182,17 @@ f_validate_email() {
 f_validate_numeric() {
     local value="$1" min="${2:-0}" max="${3:-2147483647}" name="${4:-value}"
     
-    [[ -z "$value" ]] && { echo "Leere $name übergeben" >&2; return 1; }    
+    [[ -z "$value" ]] && { echo -e "$msgRED Leere $name übergeben" >&2; return 1; }    
     # Check if it's a valid integer
     if [[ "$value" =~ ^[0-9]+$ ]]; then
       if [[ $value -ge $min && $value -le $max ]]; then
         return 0
       else
-        echo "$name ausserhalb des erlaubten Bereichs ($min-$max): $value" >&2
+        echo -e "$msgRED $name ausserhalb des erlaubten Bereichs ($min-$max): $value" >&2
         return 1
       fi
     else
-      echo "Ungültiger Wert für $name: $value" >&2
+      echo -e "$msgRED Ungültiger Wert für $name: $value" >&2
       return 1
     fi
 }
@@ -205,19 +206,19 @@ f_sanitize_filename() {
     # Truncate if too long
     [[ ${#filename} -gt $max_length ]] && filename="${filename:0:$max_length}"
     
-    echo "$filename"
+    echo -e "$msgRED $filename"
 }
 
 f_validate_profile_name() {
     local profile="$1"
     
-    [[ -z "$profile" ]] && { echo "Leere Profilbezeichnung" >&2; return 1; }
-    [[ ${#profile} -gt 64 ]] && { echo "Profilname zu lang (64 Zeichen)" >&2; return 1; }
+    [[ -z "$profile" ]] && { echo -e "$msgRED Leere Profilbezeichnung" >&2; return 1; }
+    [[ ${#profile} -gt 64 ]] && { echo -e "$msgRED Profilname zu lang (64 Zeichen)" >&2; return 1; }
     # Only allow POSIX-compatible characters
     if [[ "$profile" =~ ^[a-zA-Z0-9._-]+$ ]]; then
       return 0
     else
-      echo "Ungültige Profilbezeichnung: $profile" >&2
+      echo -e "$msgRED Ungültige Profilbezeichnung: $profile" >&2
       return 1
     fi
 }
@@ -354,11 +355,11 @@ f_settings() {
 f_del_old_backup() {  # Log-Dateien älter als $DEL_OLD_BACKUP Tage löschen. $1 = repository
   local -i del_old_backup="${DEL_OLD_BACKUP:-30}"
   local -a find_opts=(-maxdepth 1 -type f -mtime "+$del_old_backup" -name "*${TITLE}*")
-  local stored_time current_time
+  local stored_time current_time=$EPOCHSECONDS  # Aktuelle Zeit in Sekunden
   local lastcompact_flag="${1%/*}/.lastcompact_${1##*/}"  # Datei, die anzeigt, wann das letzte Mal kompaktiert wurde
   unset -v 'BORG_PRUNE_RC' 'BORG_COMPACT_RC'
   echo -e "$msgINF Lösche alte Sicherungen aus ${1}…"
-  { printf "[%(%d.%m.%Y %H:%M:%S)T] Lösche alte Sicherungen aus %s…\n" "$EPOCHSECONDS" "$1"
+  { printf "[%(%d.%m.%Y %H:%M:%S)T] Lösche alte Sicherungen aus %s…\n" "$current_time" "$1"
     export BORG_PASSPHRASE
 
     # Alte Sicherungen löschen
@@ -375,7 +376,6 @@ f_del_old_backup() {  # Log-Dateien älter als $DEL_OLD_BACKUP Tage löschen. $1
         echo "0" > "$lastcompact_flag"
       fi
       stored_time=$(<"$lastcompact_flag")  # Gespeicherte Zeit einlesen
-      current_time=$EPOCHSECONDS  # Aktuelle Zeit in Sekunden
       if ((current_time - stored_time > $((60 * 60 * 24 * del_old_backup)) )) ; then
         echo "$BORG_BIN compact $1"
         if ! "$BORG_BIN" compact "$1" ; then
@@ -453,7 +453,7 @@ f_monitor_free_space() {  # Prüfen ob auf dem Ziel genug Platz ist (Hintergrund
         echo -e "\n\n => Die Sicherung (${TITLE}) wird abgebrochen!" ;} >> "$ERRLOG"
       kill -TERM "$(pidof "$BORG_BIN")" 2>/dev/null
       if pgrep --exact "$BORG_BIN" ; then
-        echo "$msgERR Es laüft immer noch ein borg-Prozess! Versuche zu beenden…"
+        echo "$msgERR Es läuft immer noch ein borg-Prozess! Versuche zu beenden…"
         killall --exact --verbose "$BORG_BIN" 2>> "$ERRLOG"
       fi
       break  # Beenden der while-Schleife
@@ -473,8 +473,8 @@ f_source_config() {  # Konfiguration laden
     
     # Prüfung, ob die Konfigurationsdatei world-writable ist
     if [[ $(stat -c %a "$config_file") =~ [0-9][0-9][2367] ]] ; then
-        echo -e "$msgWRN Konfigurationsdatei ist 'world-writable': $config_file${nc}" >&2
-        echo "Dies ist ein Sicherheitsrisiko. Bitte verwenden Sie: chmod 644 $config_file" >&2
+        echo -e "$msgWRN Konfigurationsdatei ist 'world-writable': $config_file" >&2
+        echo -e "$msgWRN Dies ist ein Sicherheitsrisiko. Bitte verwenden Sie: chmod 644 $config_file" >&2
         sleep 3
     fi
     
@@ -504,14 +504,14 @@ f_borg_check_repo() {
       repo_create_opt=("${BORG_INIT_OPT[@]}")
       repo_info_cmd='info'
     else  # Borg Version 2.x
-      if [[ !  -d "$R_TARGET" ]] ; then
+      if [[ ! -d "$R_TARGET" ]] ; then
         mkdir --partents "$R_TARGET" || \
           { echo -e "$msgERR Erstellen von ${R_TARGET} fehlgeschlagen!${nc}" >&2 ; f_exit 1; }
       fi
     fi
     echo -e "$msgINF Versuche das Repository anzulegen…"
     export BORG_PASSPHRASE
-    if ! "$BORG_BIN" "$repo_create_cmd" "${repo_create_opt[@]}" "$borg_repo" &>/dev/null ; then
+    if ! "$BORG_BIN" "$repo_create_cmd" "${repo_create_opt[@]}" "$borg_repo" &>> "$LOG" ; then
       echo -e "$msgERR Anlegen des Repostories fehlgeschlagen!${nc}" ; f_exit 1
     fi
     "$BORG_BIN" "$repo_info_cmd" --verbose "$borg_repo" &>> "$LOG"  # Daten in das Log
@@ -560,7 +560,7 @@ while getopts ":c:" opt ; do
          f_exit 1
        fi
     ;;
-    ?) ;;
+    *) ;;
   esac
 done
 
@@ -589,13 +589,15 @@ else
   NOTIFY='echo'
 fi
 
+# Prüfen, ob BORG_BIN gültig ist
+ if ! f_validate_path "${BORG_BIN:=borg}" "general" ; then
+  # Wenn BORG_BIN nicht gesetzt ist, dann wird nach "borg" gesucht
+  echo -e "$msgERR BORG_BIN nicht gültig!${nc}" >&2
+  f_exit 1
+fi
+
 # Borg Version auslesen und speichern
 IFS=' .' read -r -a BORG_VERSION < <(${BORG_BIN} --version)  # borg 1 1 17
-# Beta-Versionen werden nicht unterstützt
-#if [[ "${BORG_VERSION[3]}" =~ ^[0-9] ]] ; then  # !DEBUG
-#  echo -e "$msgERR Borg Testversionen werden nicht unterstützt! (Aktuell: ${BORG_VERSION[*]})" >&2
-#  f_exit 1
-#fi
 # Ab Borg 1.4.x detailiertere Warnungen und Fehlermeldungen ausgegeben
 if [[ ${BORG_VERSION[1]} -eq 1 || ${BORG_VERSION[2]} -ge '4' ]] ; then
   export BORG_EXIT_CODES='modern'  # Vorgabe ab Borg 2.0.0
@@ -606,19 +608,25 @@ tty --silent && clear
 echo -e "\e[44m \e[0;1m MV_BorgBackup${nc}\e[0;32m => Version: ${VERSION}${nc} by MegaV0lt"
 # Anzeigen, welche Konfiguration geladen wurde!
 echo -e "\e[46m $nc $CONFLOADED Konfiguration:\e[1m ${CONFIG}${nc}"
-echo -e "\e[46m $nc Verwende: ${BORG_VERSION[0]} ${BORG_VERSION[1]}.${BORG_VERSION[2]}.${BORG_VERSION[3]}\n"
-[[ $EUID -ne 0 ]] && echo -e "$msgWRN Skript ohne root-Rechte gestartet!"
+echo -e "\e[46m $nc Verwende: ${BORG_VERSION[0]} ${BORG_VERSION[1]}.${BORG_VERSION[2]}.${BORG_VERSION[3]}"
+[[ $EUID -ne 0 ]] && echo -e "$msgWRN Skript ohne Root-Rechte gestartet!"
+
+# Beta-Versionen werden nicht unterstützt
+#if [[ "${BORG_VERSION[3]}" =~ ^[0-9] ]] ; then  # !DEBUG
+#  echo -e "$msgERR Borg Testversionen werden aus Sicherheitsgründen nicht unterstützt!${nc}" >&2
+#  f_exit 1
+#fi
 
 # Symlink /dev/fd fehlt bei manchen Systemen (BSD, OpenWRT, ...). https://bugzilla.redhat.com/show_bug.cgi?id=814850
 if [[ ! -L /dev/fd ]] ; then
   echo -e "$msgWRN Der Symbolische Link \"/dev/fd -> /proc/self/fd\" fehlt!"
   echo -e "$msgINF Erstelle Symbolischen Link \"/dev/fd\"…"
   ln --symbolic --force /proc/self/fd /dev/fd || \
-    { echo -e "$msgERR Fehler beim erstellen des Symbolischen Links!${nc}" >&2 ; f_exit 1; }
+    { echo -e "$msgERR Der Symbolische Link konnte nicht erstellt werden${nc}" >&2 ; f_exit 1; }
 fi
 
-OPTIND=1  # Wird benötigt, weil getops ein weiteres mal verwendet wird!
-optspec=':p:ac:m:sd:e:fh-:'
+OPTIND=1  # Zurücksetzen, damit getopts neu starten kann
+optspec=':p:ac:m:sd:e:fh-:'  # Optionen für getopts
 while getopts "$optspec" opt ; do
   case "$opt" in
     p) for i in $OPTARG ; do        # Bestimmte(s) Profil(e)
@@ -707,12 +715,6 @@ done
 # [[ -n "$SHUTDOWN" && "$(whoami)" != "root" ]] && echo -e "$msgERR Zum automatischen Herunterfahren sind Root-Rechte erforderlich!\e[0m\n" && f_help
 
 [[ -n "$SHUTDOWN" ]] && echo -e "  \e[1;31mDer Computer wird nach Durchführung der Sicherung(en) automatisch heruntergefahren!${nc}"
-
-# Prüfen, ob BORG_BIN gültig ist
- if ! f_validate_path "${BORG_BIN:=borg}" "general" ; then
-  # Wenn BORG_BIN nicht gesetzt ist, dann wird nach "borg" gesucht
-  f_exit 1
-fi
 
 # Sind die benötigen Programme installiert?
 NEEDPROGS=(find mktemp "$BORG_BIN")
@@ -982,7 +984,7 @@ if [[ -n "$MAILADRESS" ]] ; then
       for i in "${!BORGRC[@]}" ; do
         echo "${BORGPROF[i]} (Rückgabecode ${BORGRC[i]})" >> "$MAILFILE"
       done
-      echo -e '--> Rückgabecodes ab 2 sind schwere Fehler (siehe Log)' >> "$MAILFILE"
+      echo '--> Rückgabecodes ab 2 sind schwere Fehler (siehe Log)' >> "$MAILFILE"
     fi  # BORGRC
     if [[ ${#BORG_PRUNE_COMPACT[@]} -ge 1 ]] ; then  # Profil(e) mit Fehlern beim Löschen
       echo -e '\n==> Profil(e) mit Fehler(n) beim Löschen alter Sicherungen:' >> "$MAILFILE"
