@@ -10,7 +10,7 @@
 # => https://paypal.me/SteBlo <= Der Betrag kann frei gewählt werden.                   #
 #                                                                                       #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-VERSION=250601
+VERSION=250609
 
 # Dieses Skript sichert / synchronisiert Verzeichnisse mit borg.
 # Dabei können beliebig viele Profile konfiguriert oder die Pfade direkt an das Skript übergeben werden.
@@ -57,6 +57,7 @@ f_exit() {  # Beenden und aufräumen $1 = ExitCode
   fi
   [[ "$EXIT" -eq 2 ]] && echo -e "$msgERR (${5:-x}) in Zeile $3 ($4):${nc}\n$2\n" >&2
   if [[ "$EXIT" -ge 1 ]] ; then
+    export -n BORG_PASSPHRASE  # BORG_PASSPHRASE nicht speichern
     set -o posix ; set  > "/tmp/${SELF_NAME%.*}.env"  # Variablen speichern
     echo -e "$msgINF Skript- und Umgebungsvariablen wurden in \"/tmp/${SELF_NAME%.*}.env\" gespeichert!"
     [[ $EUID -ne 0 ]] && echo -e "$msgWRN Skript ohne Root-Rechte gestartet!"
@@ -122,45 +123,45 @@ f_validate_path() {
     local path="$1" path_type="${2:-general}" max_length="${3:-4096}"
     
     # Eingabewert prüfen
-    [[ -z "$path" ]] && { echo -e "$msgRED Kein Pfad angegeben" >&2; return 1; }
-    [[ ${#path} -gt $max_length ]] && { echo -e "$msgRED Pfad zu lang (>${max_length} Zeichen)" >&2; return 1; }
+    [[ -z "$path" ]] && { echo -e "$msgRED Kein Pfad angegeben" >&2 ; return 1 ;}
+    [[ ${#path} -gt $max_length ]] && { echo -e "$msgRED Pfad zu lang (>${max_length} Zeichen)" >&2 ; return 1 ;}
     
     # Sicherheitsüberprüfungen - Verhindern von Pfad-Traversierung und gefährlichen Mustern
-    if [[ "$path" =~ \.\./|/\.\./|^\.\./|/\.\.$ ]]; then
-        echo -e "$msgRED Pfad traversiert: $path" >&2
-        return 1
+    if [[ "$path" =~ \.\./|/\.\./|^\.\./|/\.\.$ ]] ; then
+      echo -e "$msgRED Pfad traversiert: $path" >&2
+      return 1
     fi
     
     # Überprüfung auf Steuerzeichen und gefährliche Sequenzen
-    if [[ "$path" =~ [[:cntrl:]] || "$path" =~ [\$\\\`\;\|\&\<\>] ]]; then
-        echo -e "$msgRED Gefährliche Zeichen in Pfad: $path" >&2
-        return 1
+    if [[ "$path" =~ [[:cntrl:]] || "$path" =~ [\$\\\`\;\|\&\<\>] ]] ; then
+      echo -e "$msgRED Gefährliche Zeichen in Pfad: $path" >&2
+      return 1
     fi
     
     # Typspezifische Überprüfung
     case "$path_type" in
-        source)
-            [[ -d "$path" || -f "$path" ]] || { echo -e "$msgRED Quellverzeichnis nicht gefunden: $path" >&2; return 1; }
-            [[ -r "$path" ]] || { echo -e "$msgRED Quellverzeichnis nicht lesbar: $path" >&2; return 1; }
-            ;;
-        target)
-            local parent_dir="${path%/*}"
-            [[ -d "$parent_dir" ]] || { echo -e "$msgRED Zielverzeichnis nicht gefunden: $parent_dir" >&2; return 1; }
-            [[ -w "$parent_dir" ]] || { echo -e "$msgRED Zielverzeichnis nicht beschreibbar: $parent_dir" >&2; return 1; }
-            ;;
-        config)
-            [[ -f "$path" ]] || { echo -e "$msgRED Konfigurationsdatei nicht gefunden: $path" >&2; return 1; }
-            [[ -r "$path" ]] || { echo -e "$msgRED Konfigurationsdatei nicht lesbar: $path" >&2; return 1; }
-            ;;
-        ssh)
-            # SSH Pfad Format: user@host:/path
-            if [[ "$path" =~ ^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+:[/a-zA-Z0-9._/-]+$ ]]; then
-                return 0
-            else
-                echo -e "$msgRED Ungültiger SSH-Pfad: $path" >&2
-                return 1
-            fi
-            ;;
+      source)
+        [[ -d "$path" || -f "$path" ]] || { echo -e "$msgRED Quellverzeichnis nicht gefunden: $path" >&2 ; return 1 ;}
+        [[ -r "$path" ]] || { echo -e "$msgRED Quellverzeichnis nicht lesbar: $path" >&2 ; return 1 ;}
+        ;;
+      target)
+        local parent_dir="${path%/*}"
+        [[ -d "$parent_dir" ]] || { echo -e "$msgRED Zielverzeichnis nicht gefunden: $parent_dir" >&2 ; return 1 ;}
+        [[ -w "$parent_dir" ]] || { echo -e "$msgRED Zielverzeichnis nicht beschreibbar: $parent_dir" >&2 ; return 1 ;}
+        ;;
+      config)
+        [[ -f "$path" ]] || { echo -e "$msgRED Konfigurationsdatei nicht gefunden: $path" >&2 ; return 1 ;}
+        [[ -r "$path" ]] || { echo -e "$msgRED Konfigurationsdatei nicht lesbar: $path" >&2 ; return 1 ;}
+        ;;
+      ssh)
+        # SSH Pfad Format: user@host:/path
+        if [[ "$path" =~ ^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+:[/a-zA-Z0-9._/-]+$ ]] ; then
+          return 0
+        else
+          echo -e "$msgRED Ungültiger SSH-Pfad: $path" >&2
+          return 1
+        fi
+        ;;
     esac
     
     return 0
@@ -169,9 +170,9 @@ f_validate_path() {
 f_validate_email() {
     local email="$1"
     
-    [[ -z "$email" ]] && { echo -e "$msgRED Keine eMail angegeben" >&2; return 1; }    
-    # Basic email validation (RFC 5322 simplified)
-    if [[ "$email" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
+    [[ -z "$email" ]] && { echo -e "$msgRED Keine eMail angegeben" >&2 ; return 1 ;}    
+    # eMail Format (RFC 5322 vereinfachte Version)
+    if [[ "$email" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]] ; then
       return 0
     else
       echo -e "$msgRED Ungültige eMail: $email" >&2
@@ -182,10 +183,9 @@ f_validate_email() {
 f_validate_numeric() {
     local value="$1" min="${2:-0}" max="${3:-2147483647}" name="${4:-value}"
     
-    [[ -z "$value" ]] && { echo -e "$msgRED Leere $name übergeben" >&2; return 1; }    
-    # Check if it's a valid integer
-    if [[ "$value" =~ ^[0-9]+$ ]]; then
-      if [[ $value -ge $min && $value -le $max ]]; then
+    [[ -z "$value" ]] && { echo -e "$msgRED Leere $name übergeben" >&2 ; return 1 ;}    
+    if [[ "$value" =~ ^[0-9]+$ ]] ; then  # Auf gültige Ganzzahl prüfen
+      if [[ $value -ge $min && $value -le $max ]] ; then
         return 0
       else
         echo -e "$msgRED $name ausserhalb des erlaubten Bereichs ($min-$max): $value" >&2
@@ -200,22 +200,22 @@ f_validate_numeric() {
 f_sanitize_filename() {
     local filename="$1" max_length="${2:-255}"
     
-    filename="${filename//[^a-zA-Z0-9._-]/_}"  # Remove/replace dangerous characters
-    # Ensure it doesn't start with dot or dash
+    filename="${filename//[^a-zA-Z0-9._-]/_}"  # Gefährliche Zeichen entfernen
+    # Prüfen, ob der Dateiname mit einem Punkt oder Bindestrich beginnt
     [[ "$filename" =~ ^[.-] ]] && filename="safe_${filename}"
-    # Truncate if too long
+    # Länge des Dateinamens begrenzen
     [[ ${#filename} -gt $max_length ]] && filename="${filename:0:$max_length}"
     
-    echo -e "$msgRED $filename"
+    echo "$filename"
 }
 
 f_validate_profile_name() {
     local profile="$1"
     
-    [[ -z "$profile" ]] && { echo -e "$msgRED Leere Profilbezeichnung" >&2; return 1; }
-    [[ ${#profile} -gt 64 ]] && { echo -e "$msgRED Profilname zu lang (64 Zeichen)" >&2; return 1; }
-    # Only allow POSIX-compatible characters
-    if [[ "$profile" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+    [[ -z "$profile" ]] && { echo -e "$msgRED Leere Profilbezeichnung" >&2 ; return 1 ;}
+    [[ ${#profile} -gt 64 ]] && { echo -e "$msgRED Profilname zu lang (64 Zeichen)" >&2 ; return 1 ;}
+    # Nur POSIX-konforme Zeichen erlauben
+    if [[ "$profile" =~ ^[a-zA-Z0-9._-]+$ ]] ; then
       return 0
     else
       echo -e "$msgRED Ungültige Profilbezeichnung: $profile" >&2
@@ -225,40 +225,55 @@ f_validate_profile_name() {
 
 f_validate_profile_config() {  # Prüfen, ob die Konfiguration gültig ist
   local notset="\e[1;41m -LEER- $nc"  # Anzeige, wenn nicht gesetzt
-  if [[ -n "$TITLE" ]]; then  # Sanitize title name
-      TITLE="$(f_sanitize_filename "$TITLE" 64)"  # Max. 64 Zeichen
+  if [[ -n "$TITLE" ]] ; then  # Name Prüfen
+    if ! f_validate_profile_name "$TITLE" ; then  # Max. 64 Zeichen
+      echo -e "$msgERR Ungültiger Profilname in Profil $PROFIL${nc}" >&2
+      f_exit 1
+    fi
   fi
-  if [[ -n "${SOURCE[*]}" ]]; then
-    for src in "${SOURCE[@]}"; do
-      if ! f_validate_path "$src" "source"; then
+  if [[ -n "${SOURCE[*]}" ]] ; then
+    for src in "${SOURCE[@]}" ; do
+      if ! f_validate_path "$src" "source" ; then
         echo -e "$msgERR Ungültiger Quellpfad in Profil $PROFIL${nc}" >&2
         f_exit 1
       fi
     done
   fi
-  if [[ -n "$TARGET" ]]; then
-    # Determine target type (local or SSH)
-    if [[ "$TARGET" =~ '@' ]]; then
-      if ! f_validate_path "$TARGET" "ssh"; then
+  if [[ -n "$TARGET" ]] ; then
+    if [[ "$TARGET" =~ '@' ]] ; then
+      if ! f_validate_path "$TARGET" "ssh" ; then  # SSH Pfad Format: user@host:/path
         echo -e "$msgERR Ungültiger SSH-Pfad in Profil $PROFIL${nc}" >&2
         f_exit 1
       fi
     else
-      if ! f_validate_path "$TARGET" "target"; then
+      # Nur auf ungülige Zeichen prüfen. Pfad wird eventuell noch angelegt (general statt target)
+      if ! f_validate_path "$TARGET" "general" ; then
         echo -e "$msgERR Ungültiges Zielverzeichnis in Profil $PROFIL${nc}" >&2
         f_exit 1
       fi
     fi
   fi
-  if [[ -n "$MINFREE" ]]; then
-    if ! f_validate_numeric "$MINFREE" 0 999999999 "MINFREE"; then
+  if [[ -n "$MINFREE" ]] ; then
+    if ! f_validate_numeric "$MINFREE" 0 999999999 "MINFREE" ; then
       echo -e "$msgERR Ungültiger MINFREE-Wert in Profil $PROFIL${nc}" >&2
       f_exit 1
     fi
   fi
-  if [[ -n "$MINFREE_BG" ]]; then
-    if ! f_validate_numeric "$MINFREE_BG" 0 999999999 "MINFREE_BG"; then
+  if [[ -n "$MINFREE_BG" ]] ; then
+    if ! f_validate_numeric "$MINFREE_BG" 0 999999999 "MINFREE_BG" ; then
       echo -e "$msgERR Ungültiger MINFREE_BG-Wert in Profil $PROFIL${nc}" >&2
+      f_exit 1
+    fi
+  fi
+  if [[ -n "$LOG" ]] ; then 
+    if ! f_validate_path "$LOG" 'general' ; then  # Logdatei-Namen prüfen
+      echo -e "$msgERR Ungültiger Logdatei-Pfad in Profil $PROFIL${nc}" >&2
+      f_exit 1
+    fi
+  fi
+  if [[ -n "$ERRLOG" ]] ; then 
+    if ! f_validate_path "$ERRLOG" 'general' ; then  # Fehler-Logdatei-Namen prüfen
+      echo -e "$msgERR Ungültiger Fehler-Logdatei-Pfad in Profil $PROFIL${nc}" >&2
       f_exit 1
     fi
   fi
@@ -277,7 +292,6 @@ f_validate_profile_config() {  # Prüfen, ob die Konfiguration gültig ist
     echo -e " Profil:     \"${TITLE:-$notset}\"\n Parameter:  \"${ARG:-$notset}\" (Nummer: $i)"
     echo -e " MINFREE:    \"${MINFREE:-$notset}\"\n MINFREE_BG: \"${MINFREE_BG:-$notset}\"" ; f_exit 1
   fi
-
 }
 
 f_setup_ssh_targets() {  # SSH-Quellen und -Ziele einrichten
@@ -312,11 +326,6 @@ f_configure_profile_defaults() {  # Standardwerte setzen
 
 f_settings() {
   if [[ "$PROFIL" != 'customBak' ]] ; then
-    # Validate profile name first
-    if ! f_validate_profile_name "$PROFIL"; then
-      echo -e "$msgERR Ungültiger Profilname: $PROFIL${nc}" >&2
-      f_exit 1
-    fi
     # Benötigte Werte aus dem Array (.conf) holen
     for i in "${!arg[@]}" ; do  # Anzahl der vorhandenen Profile ermitteln
       if [[ "${arg[i]}" == "$PROFIL" ]] ; then  # Wenn das gewünschte Profil gefunden wurde
@@ -818,8 +827,8 @@ for PROFIL in "${P[@]}" ; do
   case $MODE in
     N) # Normale Sicherung (inkl. customBak)
       R_TARGET="${TARGET}/${FILES_DIR}"  # Ordner für das Repository
-      f_borg_check_repo "$R_TARGET"  # Prüfen, ob das Repository existiert und ggf. anlegen
-      f_countdown_wait               # Countdown vor dem Start anzeigen
+      f_borg_check_repo "$R_TARGET"      # Prüfen, ob das Repository existiert und ggf. anlegen
+      f_countdown_wait                   # Countdown vor dem Start anzeigen
       if [[ $MINFREE -gt 0 || $MINFREE_BG -gt 0 ]] ; then
         f_check_free_space  # Platz auf dem Ziel überprüfen (MINFREE oder MINFREE_BG)
       fi
@@ -867,14 +876,14 @@ for PROFIL in "${P[@]}" ; do
 
   # Partitionstabelle sichern
   if [[ "$EUID" -eq 0 ]] && type -p sfdisk &>/dev/null ; then  # 'sfdisk' vorhanden?
-    if [[ -e "${TARGET}/ReadMe.partition.table.txt" ]] ; then  # ReadMe erstellen, wenn nicht vorhanden
+    if [[ ! -e "${TARGET}/ReadMe.partitiontable.txt" ]] ; then  # ReadMe erstellen, wenn nicht vorhanden
       { echo -e "Die Partitionstabelle wurde mit dem Skript \"${SELF_NAME}\" gesichert.\n"
         echo -e "Bitte beachten, dass die Bezeichnungen der Partitionen zwischen"
         echo -e "Systemneustarts wechseln können!"
         echo -e "Beispiel: /dev/sda kann sich in /dev/sdb ändern,"
         echo -e "          /dev/nvme0n1p1 kann sich in /dev/nvme0n2p1 ändern.\n"
         echo -e "Die Partitionstabelle wurde mit dem Befehl \"sfdisk -d\" gesichert.\n"
-      } > "${TARGET}/ReadMe.partition.table.txt"
+      } > "${TARGET}/ReadMe.partitiontable.txt"
     fi
     if [[ -z "${SOURCE[*]}" ]] ; then  # Keine Quelle angegeben
       echo -e "$msgWRN Es wurde keine Quelle angegeben! (Partitionstabelle wird nicht gesichert)"
@@ -886,11 +895,11 @@ for PROFIL in "${P[@]}" ; do
         read -r device rest <<< "${MAPFILE[1]}"
         : "${device#/dev/}" ; dev="${_%[1-9]}"  # /dev/ und Nummer entfernen (/dev/sda1 -> sda)
         src="${source//'/'/'_'}"  # Alle '/' durch '_' ersetzen
-        if ! sfdisk -d "/dev/${dev}" &> "${TARGET}/partition.table.${src}.${dev}.txt" ; then
-          rm -f "${TARGET}/partition.table.${src}.${dev}.txt" &>/dev/null  # Leere Datei löschen
+        if ! sfdisk -d "/dev/${dev}" &> "${TARGET}/partitiontable.${src}.${dev}.txt" ; then
+          rm -f "${TARGET}/partitiontable.${src}.${dev}.txt" &>/dev/null  # Leere Datei löschen
           dev="${dev%p}"                        # 'p' entfernen (nvme0n1p1 -> nvme0n1)
-          if ! sfdisk -d "/dev/${dev}" &> "${TARGET}/partition.table.${src}.${dev}.txt" ; then
-            rm -f "${TARGET}/partition.table.${src}.${dev}.txt" &>/dev/null  # Leere Datei löschen
+          if ! sfdisk -d "/dev/${dev}" &> "${TARGET}/partitiontable.${src}.${dev}.txt" ; then
+            rm -f "${TARGET}/partitiontable.${src}.${dev}.txt" &>/dev/null  # Leere Datei löschen
             echo -e "\n$msgERR Die Partitionstabelle von $dev (${device}) wurde nicht erkannt!${nc}" >&2
           fi
         fi
