@@ -665,7 +665,7 @@ while getopts "$optspec" opt ; do
       MOUNT='' ; MODE='N' ; MODE_TXT='Benutzerdefiniert'
     ;;
     s) SHUTDOWN='true' ;;           # Herunterfahren gewählt
-    d) if f_validate_numeric "$OPTARG" 0 365 "DEL_OLD_BACKUP" ; then
+    d) if f_validate_numeric "$OPTARG" 0 365 'DEL_OLD_BACKUP' ; then
          DEL_OLD_BACKUP="$OPTARG"  # Tage, die erhalten bleiben
        else
          echo -e "$msgERR Ungültige Zahl für -d (0-365): $OPTARG${nc}" >&2
@@ -675,8 +675,8 @@ while getopts "$optspec" opt ; do
     e) if f_validate_email "$OPTARG"; then
          MAILADRESS="$OPTARG"  # eMail-Adresse verwenden um Logs zu senden
        else
-         echo -e "$msgERR Ungültige eMail-Adresse: $OPTARG${nc}" >&2
-         f_exit 1
+         echo -e "$msgWRN Ungültige eMail-Adresse: $OPTARG${nc}" >&2
+         # f_exit 1  # Nur Warnung, damit das Skript weiterläuft
        fi
     ;;     
     f) MAILONLYERRORS='true' ;;     # eMail nur bei Fehlern senden
