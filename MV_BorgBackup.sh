@@ -10,7 +10,7 @@
 # => https://paypal.me/SteBlo <= Der Betrag kann frei gewählt werden.                   #
 #                                                                                       #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-VERSION=250609
+VERSION=250610
 
 # Dieses Skript sichert / synchronisiert Verzeichnisse mit borg.
 # Dabei können beliebig viele Profile konfiguriert oder die Pfade direkt an das Skript übergeben werden.
@@ -30,7 +30,7 @@ SELF="$(readlink /proc/$$/fd/255)" || SELF="$0"  # Eigener Pfad (besseres $0)
 SELF_NAME="${SELF##*/}"                          # skript.sh
 TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/${SELF_NAME%.*}.XXXX")"  # Ordner für temporäre Dateien
 declare -a BORG_CREATE_OPT BORGPROF BORGRC BORG_VERSION ERRLOGS LOGFILES
-declare -a SSH_ERRLOG SSH_LOG SSH_TARGET UNMOUNT  # Einige Array's
+declare -a SSH_ERRLOG SSH_LOG SSH_TARGET UNMOUNT MISSING  # Einige Array's
 declare -A _arg _target
 msgERR='\e[1;41m FEHLER! \e[0;1m' ; nc="\e[0m"  # Anzeige "FEHLER!" ; Reset der Farben
 msgRED='\e[41m \e[0m' ; msgCYN='\e[46m \e[0m'   # " " mit rotem/cyan Hintergrund
@@ -118,7 +118,7 @@ f_help() {
   f_exit 1
 }
 
-# === INPUT VALIDATION AND SANITIZATION FUNCTIONS ===
+# === FUNKTIONEN ZUM VALIDIEREN DER EINGABEWERTE ===
 f_validate_path() {
     local path="$1" path_type="${2:-general}" max_length="${3:-4096}"
     
@@ -514,7 +514,7 @@ f_borg_check_repo() {
       repo_info_cmd='info'
     else  # Borg Version 2.x
       if [[ ! -d "$R_TARGET" ]] ; then
-        mkdir --partents "$R_TARGET" || \
+        mkdir --parents "$R_TARGET" || \
           { echo -e "$msgERR Erstellen von ${R_TARGET} fehlgeschlagen!${nc}" >&2 ; f_exit 1; }
       fi
     fi
@@ -608,7 +608,7 @@ fi
 # Borg Version auslesen und speichern
 IFS=' .' read -r -a BORG_VERSION < <(${BORG_BIN} --version)  # borg 1 1 17
 # Ab Borg 1.4.x detailiertere Warnungen und Fehlermeldungen ausgegeben
-if [[ ${BORG_VERSION[1]} -eq 1 || ${BORG_VERSION[2]} -ge '4' ]] ; then
+if [[ ${BORG_VERSION[1]} -eq 1 && ${BORG_VERSION[2]} -ge '4' ]] ; then
   export BORG_EXIT_CODES='modern'  # Vorgabe ab Borg 2.0.0
 fi
 
@@ -1070,7 +1070,7 @@ if [[ -n "$MAILADRESS" ]] ; then
   fi  # SHOWDURATION
 
   # eMail nur, wenn (a) MAILONLYERRORS=true und Fehler vorhanden sind oder (b) MAILONLYERRORS nicht true
-  if [[ ${#ERRLOGS[@]} -ge 1 && "$MAILONLYERRORS" == 'true' || "$MAILONLYERRORS" != 'true' ]] ; then
+  if [[ ${#ERRLOGS[@]} -ge 1 && "$MAILONLYERRORS" == 'true' ]] || [[ "$MAILONLYERRORS" != 'true' ]] ; then
     # eMail versenden
     echo -e "$msgINF Sende eMail an ${MAILADRESS}…"
     case "$MAILPROG" in
