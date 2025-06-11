@@ -32,7 +32,7 @@ BORG_PRUNE_OPT_KEEP=(--keep-within=1d --keep-daily=7 --keep-weekly=4 --keep-mont
 BORG_INIT_OPT=('--encryption=authenticated-blake2' '--make-parent-dirs')
 
 # Optionen für borg repro_create (borg 2.0). https://borgbackup.readthedocs.io/en/latest/usage/repo-create.html
-BORG_REPRO_CREATE_OPT=(--encryption repokey-aes-ocb)
+BORG_REPO_CREATE_OPT=(--encryption repokey-aes-ocb)
 
 #export BORG_UNKNOWN_UNENCRYPTED_REPO_ACCESS_IS_OK=yes  # 'yes' oder 'no' (default)
 # Für “Warning: Attempting to access a previously unknown unencrypted repository”
