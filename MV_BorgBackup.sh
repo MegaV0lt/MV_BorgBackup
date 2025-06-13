@@ -32,7 +32,7 @@ TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/${SELF_NAME%.*}.XXXX")"  # Ordner für temp
 declare -a BORG_CREATE_OPT BORGPROF BORGRC BORG_VERSION ERRLOGS LOGFILES
 declare -a SSH_ERRLOG SSH_LOG SSH_TARGET UNMOUNT MISSING  # Einige Array's
 declare -A _arg _target
-msgERR='\e[1;41m FEHLER! \e[0;1m' ; nc="\e[0m"  # Anzeige "FEHLER!" ; Reset der Farben
+msgERR='\e[1;41m FEHLER! \e[0;1m' ; nc='\e[0m'  # Anzeige "FEHLER!" ; Reset der Farben
 msgRED='\e[41m \e[0m' ; msgCYN='\e[46m \e[0m'   # " " mit rotem/cyan Hintergrund
 msgINF='\e[42m \e[0m' ; msgWRN='\e[103m \e[0m'  # " " mit grünem/gelben Hintergrund
 
@@ -49,25 +49,19 @@ f_errtrap() {  # ERR-Trap mit "ON" aktivieren, ansonsten nur ins ERRLOG
 }
 
 f_msg() {  # $1 = Typ (INF, WRN, ERR, CYN, RED), $2... = Nachricht
-  local type msg
-  if [[ "$1" =~ ^(INF|WRN|ERR|CYN|RED)$ ]] ; then
-    type="${1^^}"
-    shift
-    case "$type" in
-      INF) msg="$msgINF " ;;
-      WRN) msg="$msgWRN " ;;
-      ERR) msg="$msgERR " ;;
-      CYN) msg="$msgCYN " ;;
-      RED) msg="$msgRED " ;;
-      *)   msg="" ;;
-    esac
-    if [[ "$type" == "ERR" ]]; then
-      printf "%b%b%b\n" "$msg" "$*" "$nc" >&2
-    else
-      printf "%b%b%b\n" "$msg" "$*" "$nc"
-    fi
-  else  # Kein Typ angegeben, alles als Nachricht behandeln
-    printf "%b\n" "$*"
+  local type="${1^^}" msg
+  case "$type" in
+    INF) msg="$msgINF " ;;
+    WRN) msg="$msgWRN " ;;
+    ERR) msg="$msgERR " ;;
+    CYN) msg="$msgCYN " ;;
+    RED) msg="$msgRED " ;;
+    *)   msg="" ;;
+  esac
+  if [[ "$type" == "ERR" ]] ; then
+    printf "%b%b%b\n" "$msg" "$2" "$nc" >&2
+  else
+    printf "%b%b%b\n" "$msg" "${2:-$*}" "$nc"  # Wenn $2 leer, dann $* als Nachricht
   fi
 }
 
@@ -122,7 +116,7 @@ f_help() {
       f_msg "  \e[1;34m-p${nc} \e[1;36m${arg[i]}${nc}\tProfil \"${title[i]}\""
     done
   else
-    f_msg "  \e[1;34m-p${nc} \e[1;36mx${nc}\tProfil (arg[nr]=)"
+    f_msg "  \e[1;34m-p${nc} \e[1;36mx${nc}\tProfil (arg[nr]=x)"
   fi  # CONFLOADED
   f_msg " oder\n  \e[1;34m-a${nc}\tAlle Sicherungs-Profile"
   f_msg " oder\n  \e[1;34m-m${nc}\tVerzeichnisse manuell angeben\n"
@@ -146,23 +140,23 @@ f_help() {
 # === FUNKTIONEN ZUM VALIDIEREN DER EINGABEWERTE ===
 f_validate_path() {
     local path="$1" path_type="${2:-general}" max_length="${3:-4096}"
-    
+
     # Eingabewert prüfen
     [[ -z "$path" ]] && { f_msg RED 'Kein Pfad angegeben' ; return 1 ;}
     [[ ${#path} -gt $max_length ]] && { f_msg RED "Pfad zu lang (>${max_length} Zeichen)" ; return 1 ;}
-    
+
     # Sicherheitsüberprüfungen - Verhindern von Pfad-Traversierung und gefährlichen Mustern
     if [[ "$path" =~ \.\./|/\.\./|^\.\./|/\.\.$ ]] ; then
       f_msg RED "Pfad traversiert: $path"
       return 1
     fi
-    
+
     # Überprüfung auf Steuerzeichen und gefährliche Sequenzen
     if [[ "$path" =~ [[:cntrl:]] || "$path" =~ [\$\\\`\;\|\&\<\>] ]] ; then
       f_msg RED "Gefährliche Zeichen in Pfad: $path"
       return 1
     fi
-    
+
     # Typspezifische Überprüfung
     case "$path_type" in
       source)
@@ -188,14 +182,14 @@ f_validate_path() {
         fi
         ;;
     esac
-    
+
     return 0
 }
 
 f_validate_email() {
     local email="$1"
-    
-    [[ -z "$email" ]] && { f_msg RED "Keine eMail angegeben" ; return 1 ;}    
+
+    [[ -z "$email" ]] && { f_msg RED "Keine eMail angegeben" ; return 1 ;}
     # eMail Format (RFC 5322 vereinfachte Version)
     if [[ "$email" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]] ; then
       return 0
@@ -207,8 +201,8 @@ f_validate_email() {
 
 f_validate_numeric() {
     local value="$1" min="${2:-0}" max="${3:-2147483647}" name="${4:-value}"
-    
-    [[ -z "$value" ]] && { f_msg RED "Leere $name übergeben" ; return 1 ;}    
+
+    [[ -z "$value" ]] && { f_msg RED "Leere $name übergeben" ; return 1 ;}
     if [[ "$value" =~ ^[0-9]+$ ]] ; then  # Auf gültige Ganzzahl prüfen
       if [[ $value -ge $min && $value -le $max ]] ; then
         return 0
@@ -224,19 +218,19 @@ f_validate_numeric() {
 
 f_sanitize_filename() {
     local filename="$1" max_length="${2:-255}"
-    
+
     filename="${filename//[^a-zA-Z0-9._-]/_}"  # Gefährliche Zeichen entfernen
     # Prüfen, ob der Dateiname mit einem Punkt oder Bindestrich beginnt
     [[ "$filename" =~ ^[.-] ]] && filename="safe_${filename}"
     # Länge des Dateinamens begrenzen
     [[ ${#filename} -gt $max_length ]] && filename="${filename:0:$max_length}"
-    
+
     echo "$filename"
 }
 
 f_validate_profile_name() {
     local profile="$1"
-    
+
     [[ -z "$profile" ]] && { f_msg RED "Leere Profilbezeichnung" ; return 1 ;}
     [[ ${#profile} -gt 64 ]] && { f_msg RED "Profilname zu lang (64 Zeichen)" ; return 1 ;}
     # Nur POSIX-konforme Zeichen erlauben
@@ -290,13 +284,13 @@ f_validate_profile_config() {  # Prüfen, ob die Konfiguration gültig ist
       f_exit 1
     fi
   fi
-  if [[ -n "$LOG" ]] ; then 
+  if [[ -n "$LOG" ]] ; then
     if ! f_validate_path "$LOG" 'general' ; then  # Logdatei-Namen prüfen
       f_msg ERR "Ungültiger Logdatei-Pfad in Profil $PROFIL${nc}" >&2
       f_exit 1
     fi
   fi
-  if [[ -n "$ERRLOG" ]] ; then 
+  if [[ -n "$ERRLOG" ]] ; then
     if ! f_validate_path "$ERRLOG" 'general' ; then  # Fehler-Logdatei-Namen prüfen
       f_msg ERR "Ungültiger Fehler-Logdatei-Pfad in Profil $PROFIL${nc}" >&2
       f_exit 1
@@ -337,7 +331,7 @@ f_setup_ssh_targets() {  # SSH-Quellen und -Ziele einrichten
 }
 
 f_configure_profile_defaults() {  # Standardwerte setzen
-  : "${TITLE:=Profil_${ARG}}"  # Wenn Leer, dann Profil_ gefolgt von Parameter
+  : "${TITLE:=Profil_${ARG:-noarg}}"  # Wenn Leer, dann Profil_ gefolgt von Parameter
   : "${LOG:=${TMPDIR}/${SELF_NAME%.*}_${DT_NOW}.log}"  # Temporäre Logdatei
   ERRLOG="${LOG%.*}.err.log"                 # Fehlerlog im Logverzeichnis der Sicherung
   if [[ "${BORG_VERSION[1]}" -ge 2 ]] ; then
@@ -356,7 +350,7 @@ f_settings() {
       if [[ "${arg[i]}" == "$PROFIL" ]] ; then  # Wenn das gewünschte Profil gefunden wurde
         # BORG_CREATE_OPT und MOUNT wieder herstelen
         if [[ -n "${_BORG_CREATE_OPT[*]}" ]] ; then
-          read -r -a BORG_CREATE_OPT <<< "${_BORG_CREATE_OPT[@]}" ; unset -v '_BORG_CREATE_OPT'
+          BORG_CREATE_OPT=("${_BORG_CREATE_OPT[@]}") ; unset -v '_BORG_CREATE_OPT'
         fi
         [[ -n "$_MOUNT" ]] && { MOUNT="$_MOUNT" ; unset -v '_MOUNT' ;}
         [[ "$MOUNT" == '0' ]] && unset -v 'MOUNT'  # MOUNT war nicht gesetzt
@@ -368,18 +362,19 @@ f_settings() {
         SKIP_FULL="${skip_full[i]}" ; MINFREE_BG="${minfree_bg[i]}"
         f_configure_profile_defaults    # Standardwerte setzen (bei Bedarf)
         # Bei mehreren Profilen müssen die Werte erst gesichert und später wieder zurückgesetzt werden
-        [[ -n "${mount[i]}" ]] && { _MOUNT="${MOUNT:-0}" ; MOUNT="${mount[i]}" ;}  # Eigener Einhängepunkt
+        [[ -n "${mount[i]:-}" ]] && { _MOUNT="${MOUNT:-0}" ; MOUNT="${mount[i]}" ;}  # Eigener Einhängepunkt
         f_setup_ssh_targets  # SSH-Quellen und -Ziele einrichten
         f_validate_profile_config "$i"  # Prüfen, ob die Konfiguration gültig ist
         case "${MODE^^}" in  # ${VAR^^} ergibt Großbuchstaben!
           *) MODE='N' ; MODE_TXT='Normal'  # Vorgabe: Normaler Modus
-            if [[ -n "${borg_create_opt[i]}" ]] ; then
-              read -r -a _BORG_CREATE_OPT <<< "${BORG_CREATE_OPT[@]}"
+            if [[ -n "${borg_create_opt[i]:-}" ]] ; then
+              _BORG_CREATE_OPT=("${BORG_CREATE_OPT[@]}")
               read -r -a BORG_CREATE_OPT <<< "${borg_create_opt[i]}"
             fi
           ;;
         esac  # MODE
         [[ -n "$MINFREE_BG" ]] && MODE_TXT+=" + HÜ [${MINFREE_BG} MB]"
+        break  # Profil gefunden, Schleife verlassen
       fi
     done
   fi
@@ -395,11 +390,11 @@ f_del_old_backup() {  # Log-Dateien älter als $DEL_OLD_BACKUP Tage löschen. $1
   f_msg INF "Lösche alte Sicherungen aus ${1}…"
   { printf "[%(%d.%m.%Y %H:%M:%S)T] Lösche alte Sicherungen aus %s…\n" "$current_time" "$1"
     # Alte Sicherungen löschen
-    echo "$BORG_BIN prune ${BORG_PRUNE_OPT[*]} ${BORG_PRUNE_OPT_KEEP[*]}"
+    f_msg "$BORG_BIN prune ${BORG_PRUNE_OPT[*]} ${BORG_PRUNE_OPT_KEEP[*]}"
     if ! "$BORG_BIN" prune "${BORG_PRUNE_OPT[@]}" "${BORG_PRUNE_OPT_KEEP[@]}" ; then
       BORG_PRUNE_RC=$?  # Fehlercode merken
-      echo "Löschen der alten Sicherungen fehlgeschlagen! (BORG_PRUNE_OPT: ${BORG_PRUNE_OPT[*]})"
-      echo "Löschen der alten Sicherungen fehlgeschlagen! (BORG_PRUNE_OPT: ${BORG_PRUNE_OPT[*]})" >> "$ERRLOG"
+      f_msg "Löschen der alten Sicherungen fehlgeschlagen! (BORG_PRUNE_OPT: ${BORG_PRUNE_OPT[*]})"
+      f_msg "Löschen der alten Sicherungen fehlgeschlagen! (BORG_PRUNE_OPT: ${BORG_PRUNE_OPT[*]})" >> "$ERRLOG"
     fi
 
     # Gelöschten Speicher freigeben (Ab borg Version 1.2)
@@ -409,11 +404,11 @@ f_del_old_backup() {  # Log-Dateien älter als $DEL_OLD_BACKUP Tage löschen. $1
       fi
       stored_time=$(<"$lastcompact_flag")  # Gespeicherte Zeit einlesen
       if ((current_time - stored_time > $((60 * 60 * 24 * del_old_backup)) )) ; then
-        echo "$BORG_BIN compact"
+        f_msg "$BORG_BIN compact"
         if ! "$BORG_BIN" compact ; then
           BORG_COMPACT_RC=$?  # Fehlercode merken
-          echo 'Freigeben des Speichers fehlgeschlagen!'
-          echo "Freigeben des Speichers fehlgeschlagen!" >> "$ERRLOG"
+          f_msg 'Freigeben des Speichers fehlgeschlagen!'
+          f_msg "Freigeben des Speichers fehlgeschlagen!" >> "$ERRLOG"
         else
           echo "$current_time" > "$lastcompact_flag"  # Aktuelle Zeit speichern nur bei Erfolg
         fi
@@ -423,11 +418,11 @@ f_del_old_backup() {  # Log-Dateien älter als $DEL_OLD_BACKUP Tage löschen. $1
     [[ $del_old_backup -eq 0 ]] && { echo 'Löchen von Log-Dateien ist deaktiviert!' ; return ;}
     # Logdatei(en) löschen (Wenn $TITLE im Namen)
     if [[ -n "${SSH_LOG[*]}" ]] ; then
-      echo "Lösche alte Logdateien (${del_old_backup} Tage) aus ${SSH_LOG[2]%/*}…"
+      f_msg "Lösche alte Logdateien (${del_old_backup} Tage) aus ${SSH_LOG[2]%/*}…"
       ssh -p "${SSH_LOG[3]:-22}" "${SSH_LOG[1]%:*}" \
         "find ${SSH_LOG[2]%/*} ${find_opts[*]} ! -name ${SSH_LOG[2]##*/} -delete -print"
     else
-      echo "Lösche alte Logdateien (${del_old_backup} Tage) aus ${LOG%/*}…"
+      f_msg "Lösche alte Logdateien (${del_old_backup} Tage) aus ${LOG%/*}…"
       find "${LOG%/*}" "${find_opts[@]}" ! -name "${LOG##*/}" -delete -print
     fi  # -n SSH_LOG
   } &>> "$LOG"
@@ -454,10 +449,10 @@ f_check_free_space() {  # Prüfen ob auf dem Ziel genug Platz ist
     read -r -a df_line <<< "${MAPFILE[1]}" ; df_free="${df_line[3]%M}"  # Drittes Element ist der freie Platz (M)
     if [[ $df_free -lt $MINFREE ]] ; then
       f_msg WRN "Auf dem Ziel (${TARGET}) sind nur $df_free MegaByte frei! (MINFREE=${MINFREE})"
-      echo "Auf dem Ziel (${TARGET}) sind nur $df_free MegaByte frei! (MINFREE=${MINFREE})" >> "$ERRLOG"
+      f_msg "Auf dem Ziel (${TARGET}) sind nur $df_free MegaByte frei! (MINFREE=${MINFREE})" >> "$ERRLOG"
       if [[ -z "$SKIP_FULL" ]] ; then  # In der Konfig definiert
         f_msg "\nDie Sicherung (${TITLE}) ist vermutlich unvollständig!" >> "$ERRLOG"
-        echo -e 'Bitte überprüfen Sie auch die Einträge in den Log-Dateien!\n' >> "$ERRLOG"
+        f_msg 'Bitte überprüfen Sie auch die Einträge in den Log-Dateien!\n' >> "$ERRLOG"
       else
         f_msg "\n\n => Die Sicherung (${TITLE}) wird nicht durchgeführt!" >> "$ERRLOG"
         FINISHEDTEXT='abgebrochen!'  # Text wird am Ende ausgegeben
@@ -468,7 +463,7 @@ f_check_free_space() {  # Prüfen ob auf dem Ziel genug Platz ist
     unset -v 'SKIP_FULL'  # Löschen, falls gesetzt
     echo -e -n "$msgINF Starte Hintergrundüberwachung…"
     f_monitor_free_space &  # Prüfen, ob auf dem Ziel genug Platz ist (Hintergrundprozess)
-    MFS_PID=$! ; echo " PID: $MFS_PID"  # PID merken
+    MFS_PID=$! ; f_msg " PID: $MFS_PID"  # PID merken
   fi  # MINFREE -gt 0
 }
 
@@ -502,20 +497,20 @@ f_source_config() {  # Konfiguration laden
         f_msg ERR "Ungültige Konfigurationsdatei: $config_file${nc}" >&2
         f_exit 1
     fi
-    
+
     # Prüfung, ob die Konfigurationsdatei world-writable ist
     if [[ $(stat -c %a "$config_file") =~ [0-9][0-9][2367] ]] ; then
         f_msg WRN "Konfigurationsdatei ist 'world-writable': $config_file" >&2
         f_msg WRN "Dies ist ein Sicherheitsrisiko. Bitte verwenden Sie: chmod 644 $config_file" >&2
         sleep 3
     fi
-    
+
     # Konfigurationsdatei laden
     # shellcheck source=MV_BorgBackup.conf.dist
     if ! source "$config_file" ; then
         f_msg ERR "Konfiguration konnte nicht geladen werden: $config_file${nc}" >&2
         f_exit 1
-    fi  
+    fi
 }
 
 f_borg_check_repo() {
@@ -704,7 +699,7 @@ while getopts "$optspec" opt ; do
          f_msg WRN "Ungültige eMail-Adresse: $OPTARG${nc}" >&2
          # f_exit 1  # Nur Warnung, damit das Skript weiterläuft
        fi
-    ;;     
+    ;;
     f) MAILONLYERRORS='true' ;;     # eMail nur bei Fehlern senden
     h) f_help ;;                    # Hilfe anzeigen
     *) if [[ "$OPTERR" != 1 || "${optspec:0:1}" == ':' ]] ; then
@@ -807,7 +802,7 @@ done
 # --- PRE_ACTION ---
 if [[ -n "$PRE_ACTION" ]] ; then
   f_msg INF "Führe PRE_ACTION-Befehl(e) aus…"
-  eval "$PRE_ACTION" || { echo "$msgWRN Fehler beim Ausführen von \"${PRE_ACTION}\"!" ; sleep 10 ;}
+  eval "$PRE_ACTION" || { f_msg WRN "Fehler beim Ausführen von \"${PRE_ACTION}\"!" ; sleep 10 ;}
 fi
 
 for PROFIL in "${P[@]}" ; do
