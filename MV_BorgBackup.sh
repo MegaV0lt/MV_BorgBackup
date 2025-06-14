@@ -79,7 +79,8 @@ f_exit() {  # Beenden und aufräumen $1 = ExitCode
     f_msg WRN "Die Skript- und Umgebungsvariablen wurden in \"/tmp/${SELF_NAME%.*}.env\" gespeichert!"
     [[ $EUID -ne 0 ]] && f_msg WRN 'Skript ohne Root-Rechte gestartet!'
   fi
-  [[ -n "${exfrom[*]}" ]] && rm "${exfrom[@]}" &>/dev/null
+  [[ -n "${exfrom:-}" ]] && rm "$exfrom" &>/dev/null
+  [[ -n "${patrom:-}" ]] && rm "$patfrom" &>/dev/null
   [[ -d "$TMPDIR" ]] && rm --recursive --force "$TMPDIR" &>/dev/null  # Ordner für temporäre Dateien
   [[ -n "$MFS_PID" ]] && f_mfs_kill  # Hintergrundüberwachung beenden
   [[ "$EXIT" -ne 4 && -e "$PIDFILE" ]] && rm --force "$PIDFILE" &>/dev/null  # PID-Datei entfernen
@@ -216,18 +217,6 @@ f_validate_numeric() {
     fi
 }
 
-f_sanitize_filename() {
-    local filename="$1" max_length="${2:-255}"
-
-    filename="${filename//[^a-zA-Z0-9._-]/_}"  # Gefährliche Zeichen entfernen
-    # Prüfen, ob der Dateiname mit einem Punkt oder Bindestrich beginnt
-    [[ "$filename" =~ ^[.-] ]] && filename="safe_${filename}"
-    # Länge des Dateinamens begrenzen
-    [[ ${#filename} -gt $max_length ]] && filename="${filename:0:$max_length}"
-
-    echo "$filename"
-}
-
 f_validate_profile_name() {
     local profile="$1"
 
@@ -311,6 +300,11 @@ f_validate_profile_config() {  # Prüfen, ob die Konfiguration gültig ist
     f_msg " Profil:     \"${TITLE:-$notset}\"\n Parameter:  \"${ARG:-$notset}\" (Nummer: $i)"
     f_msg " MINFREE:    \"${MINFREE:-$notset}\"\n MINFREE_BG: \"${MINFREE_BG:-$notset}\"" ; f_exit 1
   fi
+  if [[ -n "${EXFROM:-}" && -n "${PATFROM:-}" ]] ; then
+    f_msg ERR "exfrom und patfrom sind gesetzt! Bitte nur einen Wert verwenden!${nc}" >&2
+    f_msg " Profil:     \"${TITLE:-$notset}\"\n Parameter:  \"${ARG:-$notset}\" (Nummer: $i)"
+    f_msg " EXFROM:     \"${EXFROM:-$notset}\"\n PATFROM:    \"${PATFROM:-$notset}\"" ; f_exit 1
+  fi
 }
 
 f_setup_ssh_targets() {  # SSH-Quellen und -Ziele einrichten
@@ -356,15 +350,23 @@ f_settings() {
         [[ "$MOUNT" == '0' ]] && unset -v 'MOUNT'  # MOUNT war nicht gesetzt
         TITLE="${title[i]}"   ; ARG="${arg[i]}"       ; MODE="${mode[i]}"
         IFS=';' read -r -a SOURCE <<< "${source[i]}"  ; TARGET="${target[i]}"
-        FTPSRC="${ftpsrc[i]}" ; FTPMNT="${ftpmnt[i]}"
-        ARCHIV="${archiv[i]}" ; BORG_PASSPHRASE="${passphrase[i]}"
-        LOG="${log[i]}"       ; EXFROM="${exfrom[i]}" ; MINFREE="${minfree[i]}"
-        SKIP_FULL="${skip_full[i]}" ; MINFREE_BG="${minfree_bg[i]}"
+        FTPSRC="${ftpsrc[i]}" ; FTPMNT="${ftpmnt[i]}" ; ARCHIV="${archiv[i]}"
+        BORG_PASSPHRASE="${passphrase[i]}" ; LOG="${log[i]}"
+        MINFREE="${minfree[i]}" ; MINFREE_BG="${minfree_bg[i]}"
+        SKIP_FULL="${skip_full[i]}"
+        EXFROM="${exfrom[i]}" ; PATFROM="${patfrom[i]}"
         f_configure_profile_defaults    # Standardwerte setzen (bei Bedarf)
         # Bei mehreren Profilen müssen die Werte erst gesichert und später wieder zurückgesetzt werden
         [[ -n "${mount[i]:-}" ]] && { _MOUNT="${MOUNT:-0}" ; MOUNT="${mount[i]}" ;}  # Eigener Einhängepunkt
         f_setup_ssh_targets  # SSH-Quellen und -Ziele einrichten
         f_validate_profile_config "$i"  # Prüfen, ob die Konfiguration gültig ist
+        if [[ -n "${EXFROM:-}" ]] ; then
+          EXCLUDE=(--exclude-from "${EXFROM}")  # Exclude-Datei
+        elif [[ -n "${PATFROM:-}" ]] ; then
+          EXCLUDE=(--patterns-from "${PATFROM}")  # Exclude-Pattern
+        else
+          unset -v 'EXCLUDE'  # Keine Exclude-Datei oder -Pattern
+        fi
         case "${MODE^^}" in  # ${VAR^^} ergibt Großbuchstaben!
           *) MODE='N' ; MODE_TXT='Normal'  # Vorgabe: Normaler Modus
             if [[ -n "${borg_create_opt[i]:-}" ]] ; then
@@ -772,10 +774,17 @@ for PROFIL in "${P[@]}" ; do  # Anzeige der Einstellungen
   f_msg CYN "Zielverzeichnis:\e[1m\t${TARGET}${nc}"
   f_msg CYN "Log-Datei:\e[1m\t\t${SSH_LOG[0]:-${LOG}}${nc}"
   if [[ "$PROFIL" != 'customBak' ]] ; then
-    f_msg CYN "Ausschluss:"
-    while read -r ; do
-      f_msg "${msgCYN}\t\t\t${REPLY}"
-    done < "$EXFROM"
+    if [[ -n "${EXFROM:-}" ]] ; then
+      f_msg CYN "Ausschluss (Excludes):"
+      while read -r ; do
+        f_msg "${msgCYN}\t\t\t${REPLY}"
+      done < "$EXFROM"
+    elif [[ -n "${PATFROM:-}" ]] ; then
+      f_msg CYN "Ausschluss (Pattern):"
+      while read -r ; do
+        f_msg "${msgCYN}\t\t\t${REPLY}"
+      done < "$PATFROM"
+    fi
   fi
   if [[ -n "$MAILADRESS" ]] ; then  # eMail-Adresse ist angegeben
     echo -e -n "$msgCYN eMail-Versand an:\e[1m\t${MAILADRESS}${nc}"
@@ -855,13 +864,13 @@ for PROFIL in "${P[@]}" ; do
         fi
         # Sicherung mit borg starten
         echo "==> [${dt}] - $SELF_NAME [#${VERSION}] - Start:" >> "$LOG"  # Sicher stellen, dass ein Log existiert
-        echo "$BORG_BIN create ${BORG_CREATE_OPT[*]} --exclude-from=${EXFROM:-'Nicht_gesetzt'} $BORG_ARCHIVE ${SOURCE[*]}" >> "$LOG"
+        echo "$BORG_BIN create ${BORG_CREATE_OPT[*]} ${EXCLUDE[*]} $BORG_ARCHIVE ${SOURCE[*]}" >> "$LOG"
         f_msg INF "Starte Sicherung (borg)…"
         if [[ "$PROFIL" == 'customBak' ]] ; then  # Verzeichnisse wurden manuell übergeben
           export -n BORG_PASSPHRASE  # unexport
           "$BORG_BIN" create "${BORG_CREATE_OPT[@]}" "$BORG_ARCHIVE" "${SOURCE[@]}" &>> "$LOG"
         else
-          "$BORG_BIN" create "${BORG_CREATE_OPT[@]}" --exclude-from="$EXFROM" "$BORG_ARCHIVE" "${SOURCE[@]}" &>> "$LOG"
+          "$BORG_BIN" create "${BORG_CREATE_OPT[@]}" "${EXCLUDE[@]}" "$BORG_ARCHIVE" "${SOURCE[@]}" &>> "$LOG"
         fi
         RC=$? ; [[ $RC -ne 0 ]] && { BORGRC+=("$RC") ; BORGPROF+=("$TITLE") ;}  # Profilname und Fehlercode merken
         [[ -n "$MFS_PID" ]] && f_mfs_kill  # Hintergrundüberwachung beenden!

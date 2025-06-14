@@ -197,13 +197,15 @@ POST_ACTION=''
 
 # Temporäre Datei (Standard: $(mktemp -t "tmp.XXXX")); muss nicht geändert werden
 # "${TMPDIR:-/tmp}" TMPDIR wird im Skript gesetzt, falls Leer, dann /tmp
-#exfrom[nr]="$(mktemp "${TMPDIR:-/tmp}/tmp.XXXX")"
+#exfrom[nr]="$(mktemp "${TMPDIR:-/tmp}/tmp.XXXX")"  # exfrom oder patfrom
+#patfrom[nr]="$(mktemp "${TMPDIR:-/tmp}/tmp.XXXX")"
 
 # [optional] Optionen für borg, wenn nicht die Optionen aus $BORG_CREATE_OPT (s.o.)
 # verwendet werden sollen
 #borg_create_opt[nr]=''
 
-# Dateien und Verzeichnisse, die von der Sicherung ausgeschlossen werden sollen
+# [optional] Dateien und Verzeichnisse, die von der Sicherung ausgeschlossen werden sollen
+# https://borgbackup.readthedocs.io/en/stable/usage/help.html#borg-patterns
 # Pro Zeile 1 Pfad; Pfadangaben mit Leerzeichen müssen nicht gesondert behandelt werden
 #   */tmp/              schließt /tmp und /var/tmp aus
 #   /tmp/               schließt nur /tmp aus
@@ -224,6 +226,26 @@ POST_ACTION=''
 #*/tmp/
 #_EOF_
 
+# [optional] Verwenden von 'Patterns' als Alternative zu 'Exclude'
+#cat > "${patfrom[nr]}" <<_EOF_
+## Define the recursion root
+#R /
+## Exclude all iso files in any directory
+#- **/*.iso
+## Explicitly include all inside etc and root
+#+ etc/**
+#+ root/**
+## Exclude a specific directory under each user's home directories
+#- home/*/.cache
+## Explicitly include everything in /home
+#+ home/**
+## Explicitly exclude some directories without recursing into them
+#! re:^(dev|proc|run|sys|tmp)
+## Exclude all other files and directories
+## that are not specifically included earlier.
+#- **
+#_EOF_
+
 nr=0  # Für die Nummerierung der Profile
 
 # = = = Profil 1  = = =
@@ -242,7 +264,8 @@ passphrase[nr]='P455w0rd'     # Borg Passphrase für das Archiv
  skip_full[nr]=''             # Wenn gesetzt (1, yes, True, ...) wird das Profil übersprungen
 minfree_bg[nr]=''             # Mindestens frei auf dem Ziel (in MB). Wird alle 5 Minuten geprüft
        log[nr]="${target[nr]}/${DT_TODAY}_${title[nr]}.log"
-    exfrom[nr]="$(mktemp "${TMPDIR:-/tmp}/tmp.XXXX")"
+    exfrom[nr]="$(mktemp "${TMPDIR:-/tmp}/tmp.XXXX")"  # exfrom oder patfrom
+  #patfrom[nr]="$(mktemp "${TMPDIR:-/tmp}/tmp.XXXX")"
   borg_create_opt[nr]=''
 cat > "${exfrom[nr]}" <<_EOF_
 */Dropbox/

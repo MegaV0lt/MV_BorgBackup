@@ -201,6 +201,7 @@ POST_ACTION='/usr/local/src/MV_BorgBackup/NC_DB_Export/NC_DB_Export.sh after'
 # Temporäre Datei (Standard: $(mktemp -t "tmp.XXXX")); muss nicht geändert werden
 # "${TMPDIR:-/tmp}" TMPDIR wird im Skript gesetzt, falls Leer, dann /tmp
 #exfrom[nr]="$(mktemp "${TMPDIR:-/tmp}/tmp.XXXX")"
+#patfrom[nr]="$(mktemp "${TMPDIR:-/tmp}/tmp.XXXX")"
 
 # [optional] Optionen für borg, wenn nicht die Optionen aus $BORG_OPT (s.o.) verwendet werden sollen
 #borg_create_opt[nr]=''
