@@ -32,9 +32,9 @@ TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/${SELF_NAME%.*}.XXXX")"  # Ordner für temp
 declare -a BORG_CREATE_OPT BORGPROF BORGRC BORG_VERSION ERRLOGS LOGFILES
 declare -a SSH_ERRLOG SSH_LOG SSH_TARGET UNMOUNT MISSING  # Einige Array's
 declare -A _arg _target
-msgERR='\e[1;41m FEHLER! \e[0;1m' ; nc='\e[0m'  # Anzeige "FEHLER!" ; Reset der Farben
-msgRED='\e[41m \e[0m' ; msgCYN='\e[46m \e[0m'   # " " mit rotem/cyan Hintergrund
-msgINF='\e[42m \e[0m' ; msgWRN='\e[103m \e[0m'  # " " mit grünem/gelben Hintergrund
+tagERR='\e[1;41m FEHLER! \e[0;1m' ; nc='\e[0m'  # Anzeige "FEHLER!" ; Reset der Farben
+tagRED='\e[41m \e[0m' ; tagCYN='\e[46m \e[0m'   # " " mit rotem/cyan Hintergrund
+tagINF='\e[42m \e[0m' ; tagWRN='\e[103m \e[0m'  # " " mit grünem/gelben Hintergrund
 
 # --- FUNKTIONEN ---
 trap 'f_exit 3' SIGHUP SIGINT SIGQUIT SIGABRT  # Bei unerwarteten Ende (Strg-C) aufräumen
@@ -49,19 +49,19 @@ f_errtrap() {  # ERR-Trap mit "ON" aktivieren, ansonsten nur ins ERRLOG
 }
 
 f_msg() {  # $1 = Typ (INF, WRN, ERR, CYN, RED), $2... = Nachricht
-  local type="${1^^}" msg
+  local type="${1^^}" tag='' msg="${*:2}"  # Typ in Großbuchstaben, Nachricht
   case "$type" in
-    INF) msg="$msgINF " ;;
-    WRN) msg="$msgWRN " ;;
-    ERR) msg="$msgERR " ;;
-    CYN) msg="$msgCYN " ;;
-    RED) msg="$msgRED " ;;
-    *)   msg="" ;;
+    INF) tag="$tagINF " ;;
+    WRN) tag="$tagWRN " ;;
+    ERR) tag="$tagERR " ;;
+    CYN) tag="$tagCYN " ;;
+    RED) tag="$tagRED " ;;
+    *)   tag='' ;;
   esac
   if [[ "$type" == "ERR" ]] ; then
-    printf "%b%b%b\n" "$msg" "$2" "$nc" >&2
+    printf "%b%b%b\n" "$tag" "${msg:-$*}" "$nc" >&2
   else
-    printf "%b%b%b\n" "$msg" "${2:-$*}" "$nc"  # Wenn $2 leer, dann $* als Nachricht
+    printf "%b%b%b\n" "$tag" "${msg:-$*}" "$nc"  # Wenn $2 leer, dann $* als Nachricht
   fi
 }
 
@@ -79,8 +79,8 @@ f_exit() {  # Beenden und aufräumen $1 = ExitCode
     f_msg WRN "Die Skript- und Umgebungsvariablen wurden in \"/tmp/${SELF_NAME%.*}.env\" gespeichert!"
     [[ $EUID -ne 0 ]] && f_msg WRN 'Skript ohne Root-Rechte gestartet!'
   fi
-  [[ -n "${exfrom:-}" ]] && rm "$exfrom" &>/dev/null
-  [[ -n "${patrom:-}" ]] && rm "$patfrom" &>/dev/null
+  [[ -n "${EXFROM:-}" ]] && rm "$EXFROM" &>/dev/null
+  [[ -n "${PATFROM:-}" ]] && rm "$PATFROM" &>/dev/null
   [[ -d "$TMPDIR" ]] && rm --recursive --force "$TMPDIR" &>/dev/null  # Ordner für temporäre Dateien
   [[ -n "$MFS_PID" ]] && f_mfs_kill  # Hintergrundüberwachung beenden
   [[ "$EXIT" -ne 4 && -e "$PIDFILE" ]] && rm --force "$PIDFILE" &>/dev/null  # PID-Datei entfernen
@@ -434,7 +434,7 @@ f_countdown_wait() {
   if [[ -t 1 ]] ; then
     # Länge des Strings [80] plus alle Steuerzeichen [21] (ohne \)
     printf '%-101b' "\n\e[30;46m  Profil \e[97m${TITLE}\e[30;46m wird in 5 Sekunden gestartet" ; printf '%b\n' '\e[0m'
-    f_msg CYN "Zum Abbrechen [Strg] + [C] drücken\n$msgCYN Zum Pausieren [Strg] + [Z] drücken (Fortsetzen mit \"fg\")"
+    f_msg CYN "Zum Abbrechen [Strg] + [C] drücken\n$tagCYN Zum Pausieren [Strg] + [Z] drücken (Fortsetzen mit \"fg\")"
     for i in {5..1} ; do  # Countdown ;)
       echo -e -n "\rStart in \e[97;44m  $i  ${nc} Sekunden"
       sleep 1
@@ -463,7 +463,7 @@ f_check_free_space() {  # Prüfen ob auf dem Ziel genug Platz ist
     fi  # df_free
   elif [[ $MINFREE_BG -gt 0 ]] ; then  # Prüfung im Hintergrund
     unset -v 'SKIP_FULL'  # Löschen, falls gesetzt
-    echo -e -n "$msgINF Starte Hintergrundüberwachung…"
+    echo -e -n "$tagINF Starte Hintergrundüberwachung…"
     f_monitor_free_space &  # Prüfen, ob auf dem Ziel genug Platz ist (Hintergrundprozess)
     MFS_PID=$! ; f_msg " PID: $MFS_PID"  # PID merken
   fi  # MINFREE -gt 0
@@ -482,7 +482,7 @@ f_monitor_free_space() {  # Prüfen ob auf dem Ziel genug Platz ist (Hintergrund
         f_msg "\n\n => Die Sicherung (${TITLE}) wird abgebrochen!" ;} >> "$ERRLOG"
       kill -TERM "$(pidof "$BORG_BIN")" 2>/dev/null
       if pgrep --exact "$BORG_BIN" ; then
-        echo "$msgERR Es läuft immer noch ein borg-Prozess! Versuche zu beenden…"
+        echo "$tagERR Es läuft immer noch ein borg-Prozess! Versuche zu beenden…"
         killall --exact --verbose "$BORG_BIN" 2>> "$ERRLOG"
       fi
       break  # Beenden der while-Schleife
@@ -715,7 +715,7 @@ done
 if [[ -z "${P[*]}" ]] ; then
   if [[ "${#arg[@]}" -eq 1 ]] ; then  # Wenn nur ein Profil definiert ist, dieses automatisch auswählen
     P=("${arg[@]}")   # Profil zuweisen
-    msgAUTO='(auto)'  # Text zur Anzeige
+    tagAUTO='(auto)'  # Text zur Anzeige
   else
     f_msg ERR "Es wurde kein Profil angegeben!${nc}\n" >&2 ; f_help
   fi
@@ -768,7 +768,7 @@ for PROFIL in "${P[@]}" ; do  # Anzeige der Einstellungen
 
   # Konfiguration zu allen gewählten Profilen anzeigen
   # Länge des Strings [80] plus alle Steuerzeichen [14] (ohne \)
-  printf '%-94b' "\n\e[30;46m  Konfiguration von:    \e[97m${TITLE} $msgAUTO" ; printf '%b\n' "$nc"
+  printf '%-94b' "\n\e[30;46m  Konfiguration von:    \e[97m${TITLE} $tagAUTO" ; printf '%b\n' "$nc"
   f_msg CYN "Sicherungsmodus:\e[1m\t${MODE_TXT}${nc}"
   f_msg CYN "Quellverzeichnis(se):\e[1m\t${SOURCE[*]}${nc}"
   f_msg CYN "Zielverzeichnis:\e[1m\t${TARGET}${nc}"
@@ -777,17 +777,17 @@ for PROFIL in "${P[@]}" ; do  # Anzeige der Einstellungen
     if [[ -n "${EXFROM:-}" ]] ; then
       f_msg CYN "Ausschluss (Excludes):"
       while read -r ; do
-        f_msg "${msgCYN}\t\t\t${REPLY}"
+        f_msg "${tagCYN}\t\t\t${REPLY}"
       done < "$EXFROM"
     elif [[ -n "${PATFROM:-}" ]] ; then
       f_msg CYN "Ausschluss (Pattern):"
       while read -r ; do
-        f_msg "${msgCYN}\t\t\t${REPLY}"
+        f_msg "${tagCYN}\t\t\t${REPLY}"
       done < "$PATFROM"
     fi
   fi
   if [[ -n "$MAILADRESS" ]] ; then  # eMail-Adresse ist angegeben
-    echo -e -n "$msgCYN eMail-Versand an:\e[1m\t${MAILADRESS}${nc}"
+    echo -e -n "$tagCYN eMail-Versand an:\e[1m\t${MAILADRESS}${nc}"
     [[ "$MAILONLYERRORS" == 'true' ]] && { echo ' [NUR bei Fehler(n)]' ;} || echo ''
   elif [[ "$MAILONLYERRORS" == 'true' ]] ; then
     f_msg "\e[1;43m $nc Es wurde \e[1mkeine eMail-Adresse${nc} für den Versand bei Fehler(n) angegeben!\n"
@@ -821,9 +821,9 @@ for PROFIL in "${P[@]}" ; do
     # Festplatte (Ziel) eingebunden?
     if [[ -n "$MOUNT" && "$TARGET" == "$MOUNT"* ]] ; then
       if ! mountpoint --quiet "$MOUNT" ; then
-        echo -e -n "$msgINF Versuche Sicherungsziel (${MOUNT}) einzuhängen…"
+        echo -e -n "$tagINF Versuche Sicherungsziel (${MOUNT}) einzuhängen…"
         mount "$MOUNT" &>/dev/null \
-          || { f_msg "\n$msgERR Das Sicherungsziel konnte nicht eingebunden werden! (RC: $?)${nc} (\"${MOUNT}\")" >&2 ; f_exit 1 ;}
+          || { f_msg "\n$tagERR Das Sicherungsziel konnte nicht eingebunden werden! (RC: $?)${nc} (\"${MOUNT}\")" >&2 ; f_exit 1 ;}
         f_msg "OK.\nDas Sicherungsziel (\"${MOUNT}\") wurde erfolgreich eingehängt."
         UNMOUNT+=("$MOUNT")  # Nach Sicherung wieder aushängen (Einhängepunkt merken)
       fi  # ! mountpoint
@@ -831,10 +831,10 @@ for PROFIL in "${P[@]}" ; do
     # Ist die Quelle ein FTP und eingebunden?
     if [[ -n "$FTPSRC" ]] ; then
       if ! mountpoint --quiet "$FTPMNT" ; then
-        echo -e -n "$msgINF Versuche FTP-Quelle (${FTPSRC}) unter \"${FTPMNT}\" einzuhängen…"
+        echo -e -n "$tagINF Versuche FTP-Quelle (${FTPSRC}) unter \"${FTPMNT}\" einzuhängen…"
         curlftpfs "$FTPSRC" "$FTPMNT" &>/dev/null    # FTP einhängen
         grep --quiet "$FTPMNT" /proc/mounts \
-          || { f_msg "\n$msgERR Die FTP-Quelle konnte nicht eingebunden werden! (RC: $?)${nc} (\"${FTPMNT}\")" >&2 ; f_exit 1 ;}
+          || { f_msg "\n$tagERR Die FTP-Quelle konnte nicht eingebunden werden! (RC: $?)${nc} (\"${FTPMNT}\")" >&2 ; f_exit 1 ;}
         f_msg "OK.\nDie FTP-Quelle (${FTPSRC}) wurde erfolgreich unter (\"${FTPMNT}\") eingehängt."
         UMOUNT_FTP=1  # Nach Sicherung wieder aushängen
       fi  # ! mountpoint
@@ -921,7 +921,7 @@ for PROFIL in "${P[@]}" ; do
           dev="${dev%p}"                        # 'p' entfernen (nvme0n1p1 -> nvme0n1)
           if ! sfdisk -d "/dev/${dev}" &> "${TARGET}/partitiontable.${src}.${dev}.txt" ; then
             rm -f "${TARGET}/partitiontable.${src}.${dev}.txt" &>/dev/null  # Leere Datei löschen
-            f_msg "\n$msgERR Die Partitionstabelle von $dev (${device}) wurde nicht erkannt!${nc}" >&2
+            f_msg "\n$tagERR Die Partitionstabelle von $dev (${device}) wurde nicht erkannt!${nc}" >&2
           fi
         fi
       done
@@ -935,7 +935,7 @@ for PROFIL in "${P[@]}" ; do
   [[ -n "$UMOUNT_FTP" ]] && { umount "$FTPMNT" ; unset -v 'UMOUNT_FTP' ;}
 
   [[ ${RC:-0} -ne 0 ]] && ERRTEXT="\e[91mmit Fehler ($RC) \e[0;1m"
-  echo -e -n "\a${msgINF} \e[1mProfil \"${TITLE}\" wurde ${ERRTEXT}${FINISHEDTEXT:=abgeschlossen}"
+  echo -e -n "\a${tagINF} \e[1mProfil \"${TITLE}\" wurde ${ERRTEXT}${FINISHEDTEXT:=abgeschlossen}"
   printf ' (%(%x %X)T)\n' -1  # Datum und Zeit
   f_msg "  Weitere Informationen sind in der Datei:\n  \"${SSH_LOG[0]:-${LOG}}\" gespeichert."
   if [[ -s "$ERRLOG" ]] ; then  # Existiert und ist nicht Leer
@@ -1122,7 +1122,7 @@ if [[ -n "$MAILADRESS" ]] ; then
       ;;
       *) f_msg "\nUnbekanntes Mailprogramm: \"${MAILPROG}\"" ;;
     esac
-    RC=$? ; [[ ${RC:-0} -eq 0 ]] && f_msg "\n${msgINF} Sicherungs-Bericht wurde mit \"${MAILPROG}\" an $MAILADRESS versendet.\n    Es wurde(n) ${#LOGFILES[@]} Logdatei(en) angelegt."
+    RC=$? ; [[ ${RC:-0} -eq 0 ]] && f_msg "\n${tagINF} Sicherungs-Bericht wurde mit \"${MAILPROG}\" an $MAILADRESS versendet.\n    Es wurde(n) ${#LOGFILES[@]} Logdatei(en) angelegt."
   fi  # MAILONLYERRORS
 fi  # -n MAILADDRESS
 
@@ -1137,7 +1137,7 @@ fi
 # --- POST_ACTION ---
 if [[ -n "$POST_ACTION" ]] ; then
   f_msg INF "Führe POST_ACTION-Befehl(e) aus…"
-  eval "$POST_ACTION" || { echo "$msgWRN Fehler beim Ausführen von \"${POST_ACTION}\"!" ; sleep 10 ;}
+  eval "$POST_ACTION" || { echo "$tagWRN Fehler beim Ausführen von \"${POST_ACTION}\"!" ; sleep 10 ;}
   unset -v 'POST_ACTION'
 fi
 
