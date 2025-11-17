@@ -50,10 +50,31 @@ f_MaintenanceMode() {  # $1 'on' oder 'off'
 
 f_WebServer() {  # $1 'start' oder 'stop'
   local action="$1"
-  printf '%(%H:%M:%S)T: %b\n' -1 "Webserver: ${action^}…"  # Capitalize first letter
+  printf '%(%H:%M:%S)T: %b\n' -1 "Webserver: ${action^}…"  # Erstes Zeichen groß
   systemctl "${action,,}" "$webserverServiceName"
   echo -e "Fertig\n"
 }
+
+f_NextcloudVHost() {  # $1 'enable' oder 'disable'
+  local action="${1,,}"
+  printf '%(%H:%M:%S)T: %b\n' -1 "NextcloudVirtual Host: ${action^}…"  # Erstes Zeichen groß
+  local vHostFile
+  if [[ "$webserverServiceName" == 'nginx' ]] ; then
+    if [[ "${action,,}" == 'enable' ]] ; then
+      mv "${vHostFile}.disabled" "$vHostFile"
+    else
+      mv "$vHostFile" "$vHostFile.disabled"
+    fi
+    systemctl reload nginx
+  else
+    if [[ "${action,,}" == 'enable' ]] ; then
+      a2ensite "${vHostFile##*/}"  # Nur Dateiname
+    else
+      a2dissite "${vHostFile##*/}"  # Nur Dateiname
+    fi
+    systemctl reload apache2
+  fi
+  }
 
 # Konfiguration vorhanden?
 if [[ -f "${SELF_PATH}/${CONFIG_FILE}" ]] ; then
@@ -70,6 +91,14 @@ if [[ "$EUID" != '0' ]] ; then
   exit 1
 fi
 
+# Prüfen ob Konfigurationsdatei aktuell ist
+if ! grep -q "^stopWebserverDuringBackup=" "${SELF_PATH}/${CONFIG_FILE}"; then
+    f_errorecho "FEHLER: Konfigurationsdatei ist veraltet."
+    f_errorecho "Bitte setup.sh erneut ausführen, um die Konfigurationsdatei zu aktualisieren."
+    exit 1
+fi
+
+
 if [[ "$#" -ne 1 ]] ; then
   f_errorecho "FEHLER: Das Skript benötigt Parameter 'before' oder 'after'"
   exit 1
@@ -78,7 +107,11 @@ fi
 case "$1" in
   before)
     f_MaintenanceMode on  # Wartungsmodus aktivieren
-    f_WebServer stop      # Webserver anhalten
+    if [[ "${stopWebserverDuringBackup,,}" == 'true' ]] ; then
+      f_WebServer stop    # Webserver anhalten
+    else
+      f_NextcloudVHost disable  # Nextcloud VHost deaktivieren
+    fi
     # Backup DB
     mkdir --parents /tmp/.ncdb
     if [[ "${databaseSystem,,}" == 'mysql' || "${databaseSystem,,}" == 'mariadb' ]] ; then
@@ -102,8 +135,12 @@ case "$1" in
     fi
     ;;
   after)
-    f_WebServer start      # Webserver starten
-    f_MaintenanceMode off  # Wartungsmodus deaktivieren
+    if [[ "${stopWebserverDuringBackup,,}" == 'true' ]] ; then
+      f_WebServer start        # Webserver starten
+    else
+      f_NextcloudVHost enable  # Nextcloud VHost aktivieren
+    fi
+    f_MaintenanceMode off      # Wartungsmodus deaktivieren
     rm "/tmp/.ncdb/${fileNameBackupDb}"  # Temporäre Daten löschen
     ;;
   *) f_errorecho "Unbekannter Parameter <${1}>"  ;;

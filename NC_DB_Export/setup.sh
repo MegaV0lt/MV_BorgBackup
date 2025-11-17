@@ -11,7 +11,7 @@
 # Konfiguratoinsdatei NC_DB_Export.conf
 # Die gespeichertern Werte VOR dem Start von NC_DB_Export.sh auf richtigkeit überprüfen!
 #
-# VERSION=230424
+# VERSION=251117
 
 set -Eeuo pipefail  # Bei jedem Fehler beenden
 
@@ -30,31 +30,90 @@ clear
 echo 'Pfad zur Nextcloud Installation.'
 echo "Normalerweise: $nextcloudFileDir"
 echo ''
-read -p "Verzeichnis eingeben oder ENTER falls das Verzeichnis ${nextcloudFileDir} ist: " NEXTCLOUDFILEDIRECTORY
+read -r -p "Verzeichnis eingeben oder ENTER falls das Verzeichnis ${nextcloudFileDir} ist: " NEXTCLOUDFILEDIRECTORY
 [[ -n "$NEXTCLOUDFILEDIRECTORY" ]] && nextcloudFileDir="$NEXTCLOUDFILEDIRECTORY"
 
 clear
 echo 'Webserver Benutzer.'
 echo "Normalerweise: $webserverUser"
 echo ''
-read -p "Benutzername eingeben oder ENTER falls der Benutzer ${webserverUser} ist: " WEBSERVERUSER
+read -r -p "Benutzername eingeben oder ENTER falls der Benutzer ${webserverUser} ist: " WEBSERVERUSER
 [[ -n "$WEBSERVERUSER" ]] && webserverUser="$WEBSERVERUSER"
 
 clear
 echo 'Webserver Servicename.'
 echo 'Normalerweise: nginx oder apache2'
 echo ''
-read -p "Webserver Servicename eingeben oder ENTER falls der Webserver Servicename ${webserverServiceName} ist: " WEBSERVERSERVICENAME
+read -r -p "Webserver Servicename eingeben oder ENTER falls der Webserver Servicename ${webserverServiceName} ist: " WEBSERVERSERVICENAME
 [[ -n "$WEBSERVERSERVICENAME" ]] && webserverServiceName="$WEBSERVERSERVICENAME"
+
+clear
+skipStepDisableVhost=false
+stopWebserverDuringBackup=true
+vHostFile=""
+
+if [[ "$webserverServiceName" == 'nginx' ]] ; then
+  if [[ ! -d "/etc/nginx/conf.d" ]] || [[ -z "$(ls -A /etc/nginx/conf.d)" ]]; then
+    skipStepDisableVhost=true
+  fi
+else
+  if [[ ! -d "/etc/apache2/sites-enabled" ]] || [[ -z "$(ls -A /etc/apache2/sites-enabled)" ]]; then
+    skipStepDisableVhost=true
+  fi
+fi
+
+if [[ "$skipStepDisableVhost" == 'false' ]] ; then
+  echo "Soll der Webserver während des Backups gestoppt werden?"
+  echo "Bei 'nein' wird der Nextcloud Virtual Host (vHost) temporär deaktiviert."
+  echo ""
+  read -r -p "Soll der Webserver gestoppt werden? [j/n]" STOPWEBSERVER
+
+  if [[ "$STOPWEBSERVER" == 'n' ]] ; then
+    if [[ "$webserverServiceName" == 'nginx' ]] ; then
+      files=(/etc/nginx/conf.d/*)
+      echo "Bitte wählen Sie die Virtual Host Datei für Nextcloud aus:"
+      select selected_file in "${files[@]}"; do
+          if [[ -n "$selected_file" ]]; then
+              break
+          else
+              echo "Ungültige Auswahl. Bitte erneut versuchen."
+          fi
+      done
+
+      vHostFile="$selected_file"
+      stopWebserverDuringBackup=false
+    else
+      files=(/etc/apache/site-enabled/*.conf)
+      echo "Bitte wählen Sie die Virtual Host Datei für Nextcloud aus:"
+      select selected_file in "${files[@]}"; do
+          if [[ -n "$selected_file" ]]; then
+              break
+          else
+              echo "Ungültige Auswahl. Bitte erneut versuchen."
+          fi
+      done
+
+      vHostFile="$selected_file"
+      stopWebserverDuringBackup=false
+    fi
+  fi
+fi
 
 clear
 echo 'Ermittelte/Eingegebene Werte:'
 echo "Nextcloud Installation: $nextcloudFileDir"
 echo "Webserver Benutzer: $webserverUser"
 echo "Webserver Servicename: $webserverServiceName"
-echo ''
 
-read -p "Sind die Informationen korrekt? [j/N] " CORRECTINFO
+if [ "$stopWebserverDuringBackup" = true ] ; then
+	echo "Webserver während des Backups stoppen: ja"
+else
+  echo "Webserver während des Backups stoppen: nein (Nextcloud vHost wird temporär deaktiviert)"
+  echo "Nextcloud Virtual Host Datei: ${vHostFile}"
+fi
+
+echo ''
+read -r -p "Sind die Informationen korrekt? [j/N] " CORRECTINFO
 if [[ "${CORRECTINFO,,}" != 'j' ]] ; then
   echo 'ABBRUCH!'
   echo 'Es wurden keine Dateien verändert!'
@@ -117,6 +176,14 @@ fileNameBackupDb='nextcloud-db.sql'
   echo ''
   echo "# The service name of the web server. Used to start/stop web server (e.g. 'systemctl start <webserverServiceName>')"
   echo "webserverServiceName='$webserverServiceName'"
+  echo ''
+  echo "# Whether to start/stop the web server during backup/restore."
+  echo "# If set to false, the web server will be left running, but the Nextcloud virtual host gets (temporarily) disabled."
+  echo "stopWebserverDuringBackup=$stopWebserverDuringBackup"
+  echo ""
+  echo "# Virtual host file for Nextcloud."
+  echo "# This is only required when 'stopWebserverDuringBackup' is set to false."
+  echo "vHostFile='$vHostFile'"
   echo ''
   echo '# Your web server user'
   echo "webserverUser='$webserverUser'"

@@ -15,6 +15,14 @@ nextcloudFileDir='/var/www/nextcloud'
 # TODO: The service name of the web server. Used to start/stop web server (e.g. 'systemctl start <webserverServiceName>')
 webserverServiceName='nginx'
 
+# TODO: Whether to start/stop the web server during backup/restore."
+# If set to false, the web server will be left running, but the Nextcloud virtual host gets (temporarily) disabled.
+stopWebserverDuringBackup=true
+
+# TODO: Virtual host file for Nextcloud."
+# This is only required when 'stopWebserverDuringBackup' is set to false."
+vHostFile='/etc/nginx/conf.d/nextcloud.conf"
+
 # TODO: Your web server user
 webserverUser='www-data'
 
