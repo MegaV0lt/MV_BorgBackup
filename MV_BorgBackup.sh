@@ -10,7 +10,7 @@
 # => https://paypal.me/SteBlo <= Der Betrag kann frei gewählt werden.                   #
 #                                                                                       #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-VERSION=250610
+VERSION=251130  # YYMMDD
 
 # Dieses Skript sichert / synchronisiert Verzeichnisse mit borg.
 # Dabei können beliebig viele Profile konfiguriert oder die Pfade direkt an das Skript übergeben werden.
@@ -32,9 +32,11 @@ TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/${SELF_NAME%.*}.XXXX")"  # Ordner für temp
 declare -a BORG_CREATE_OPT BORGPROF BORGRC BORG_VERSION ERRLOGS LOGFILES
 declare -a SSH_ERRLOG SSH_LOG SSH_TARGET UNMOUNT MISSING  # Einige Array's
 declare -A _arg _target
-tagERR='\e[1;41m FEHLER! \e[0;1m' ; nc='\e[0m'  # Anzeige "FEHLER!" ; Reset der Farben
-tagRED='\e[41m \e[0m' ; tagCYN='\e[46m \e[0m'   # " " mit rotem/cyan Hintergrund
-tagINF='\e[42m \e[0m' ; tagWRN='\e[103m \e[0m'  # " " mit grünem/gelben Hintergrund
+if [[ -t 1 ]] ; then  # TTY vorhanden
+  tagERR='\e[1;41m FEHLER! \e[0;1m ' ; nc='\e[0m'   # Anzeige " FEHLER! " ; Reset der Farben
+  tagRED='\e[41m \e[0m ' ; tagCYN='\e[46m \e[0m '   # " " mit rotem/cyan Hintergrund
+  tagINF='\e[42m \e[0m ' ; tagWRN='\e[103m \e[0m '  # " " mit grünem/gelben Hintergrund
+fi
 
 # --- FUNKTIONEN ---
 trap 'f_exit 3' SIGHUP SIGINT SIGQUIT SIGABRT  # Bei unerwarteten Ende (Strg-C) aufräumen
@@ -51,17 +53,17 @@ f_errtrap() {  # ERR-Trap mit "ON" aktivieren, ansonsten nur ins ERRLOG
 f_msg() {  # $1 = Typ (INF, WRN, ERR, CYN, RED), $2... = Nachricht
   local type="${1^^}" tag='' msg="${*:2}"  # Typ in Großbuchstaben, Nachricht
   case "$type" in
-    INF) tag="$tagINF " ;;
-    WRN) tag="$tagWRN " ;;
-    ERR) tag="$tagERR " ;;
-    CYN) tag="$tagCYN " ;;
-    RED) tag="$tagRED " ;;
-    *)   tag='' ;;
+    INF) tag="$tagINF" ;;
+    WRN) tag="$tagWRN" ;;
+    ERR) tag="$tagERR" ;;
+    CYN) tag="$tagCYN" ;;
+    RED) tag="$tagRED" ;;
+      *) tag='' ;;
   esac
-  if [[ "$type" == "ERR" ]] ; then
-    printf "%b%b%b\n" "$tag" "${msg:-$*}" "$nc" >&2
+  if [[ "$type" == 'ERR' ]] ; then
+    printf '%b%b%b\n' "${tag:-Fehler! }" "${msg:-$*}" "$nc" >&2
   else
-    printf "%b%b%b\n" "$tag" "${msg:-$*}" "$nc"  # Wenn $2 leer, dann $* als Nachricht
+    printf '%b%b%b\n' "$tag" "${msg:-$*}" "$nc"  # Wenn $2 leer, dann $* als Nachricht
   fi
 }
 
@@ -599,7 +601,7 @@ if [[ -z "$CONFLOADED" ]] ; then  # Konfiguration wurde noch nicht geladen
     fi
   done
   if [[ -z "$CONFLOADED" ]] ; then  # Konfiguration wurde nicht gefunden
-    f_msg ERR "Keine Konfigurationsdatei gefunden!${nc} (\"${CONFIG_DIRS[*]}\")" >&2
+    f_msg ERR "Keine Konfigurationsdatei gefunden!${nc} (\"${CONFIG_DIRS[*]}\")"
     f_help
   fi
 fi
@@ -821,21 +823,21 @@ for PROFIL in "${P[@]}" ; do
     # Festplatte (Ziel) eingebunden?
     if [[ -n "$MOUNT" && "$TARGET" == "$MOUNT"* ]] ; then
       if ! mountpoint --quiet "$MOUNT" ; then
-        echo -e -n "$tagINF Versuche Sicherungsziel (${MOUNT}) einzuhängen…"
+        f_msg INF "Sicherungsziel (${MOUNT}) wird eingehängt…"
         mount "$MOUNT" &>/dev/null \
-          || { f_msg "\n$tagERR Das Sicherungsziel konnte nicht eingebunden werden! (RC: $?)${nc} (\"${MOUNT}\")" >&2 ; f_exit 1 ;}
-        f_msg "OK.\nDas Sicherungsziel (\"${MOUNT}\") wurde erfolgreich eingehängt."
+          || { f_msg ERR "Das Sicherungsziel konnte nicht eingebunden werden! (RC: $?) (\"${MOUNT}\")" ; f_exit 1 ;}
+        f_msg "OK. Das Sicherungsziel (\"${MOUNT}\") wurde erfolgreich eingehängt."
         UNMOUNT+=("$MOUNT")  # Nach Sicherung wieder aushängen (Einhängepunkt merken)
       fi  # ! mountpoint
     fi
     # Ist die Quelle ein FTP und eingebunden?
     if [[ -n "$FTPSRC" ]] ; then
       if ! mountpoint --quiet "$FTPMNT" ; then
-        echo -e -n "$tagINF Versuche FTP-Quelle (${FTPSRC}) unter \"${FTPMNT}\" einzuhängen…"
+        f_msg INF "FTP-Quelle (${FTPSRC}) wird unter \"${FTPMNT}\" eingehängt…"
         curlftpfs "$FTPSRC" "$FTPMNT" &>/dev/null    # FTP einhängen
         grep --quiet "$FTPMNT" /proc/mounts \
           || { f_msg "\n$tagERR Die FTP-Quelle konnte nicht eingebunden werden! (RC: $?)${nc} (\"${FTPMNT}\")" >&2 ; f_exit 1 ;}
-        f_msg "OK.\nDie FTP-Quelle (${FTPSRC}) wurde erfolgreich unter (\"${FTPMNT}\") eingehängt."
+        f_msg "OK. Die FTP-Quelle (${FTPSRC}) wurde erfolgreich unter (\"${FTPMNT}\") eingehängt."
         UMOUNT_FTP=1  # Nach Sicherung wieder aushängen
       fi  # ! mountpoint
     fi
@@ -865,7 +867,7 @@ for PROFIL in "${P[@]}" ; do
         # Sicherung mit borg starten
         echo "==> [${dt}] - $SELF_NAME [#${VERSION}] - Start:" >> "$LOG"  # Sicher stellen, dass ein Log existiert
         echo "$BORG_BIN create ${BORG_CREATE_OPT[*]} ${EXCLUDE[*]} $BORG_ARCHIVE ${SOURCE[*]}" >> "$LOG"
-        f_msg INF "Starte Sicherung (borg)…"
+        f_msg INF "Starte Sicherung (${BORG_BIN})…"
         if [[ "$PROFIL" == 'customBak' ]] ; then  # Verzeichnisse wurden manuell übergeben
           export -n BORG_PASSPHRASE  # unexport
           "$BORG_BIN" create "${BORG_CREATE_OPT[@]}" "$BORG_ARCHIVE" "${SOURCE[@]}" &>> "$LOG"
@@ -921,7 +923,7 @@ for PROFIL in "${P[@]}" ; do
           dev="${dev%p}"                        # 'p' entfernen (nvme0n1p1 -> nvme0n1)
           if ! sfdisk -d "/dev/${dev}" &> "${TARGET}/partitiontable.${src}.${dev}.txt" ; then
             rm -f "${TARGET}/partitiontable.${src}.${dev}.txt" &>/dev/null  # Leere Datei löschen
-            f_msg "\n$tagERR Die Partitionstabelle von $dev (${device}) wurde nicht erkannt!${nc}" >&2
+            f_msg ERR "Die Partitionstabelle von $dev (${device}) wurde nicht erkannt!"
           fi
         fi
       done
