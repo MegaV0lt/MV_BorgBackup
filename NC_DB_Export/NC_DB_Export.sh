@@ -16,7 +16,7 @@
 # 	- MySQL/MariaDB
 # 	- PostgreSQL
 #
-# VERSION=230430
+# VERSION=260409
 
 set -Eeuo pipefail  # Beenden bei jedem Fehler
 trap f_CtrlC INT    # CTRL+C
@@ -27,17 +27,24 @@ SELF_PATH="${SELF%/*}"                           # Pfad
 CONFIG_FILE='NC_DB_Export.conf'                  # Konfiguration
 
 # Funktionen
-f_errorecho() { cat <<< "$@" 1>&2 ;}
+f_errorecho() { cat <<< "$*" 1>&2 ;}
 
 f_CtrlC() {
-  read -p "Export abgebrochen. Wartungsmodus beibehalten? [j/n] " -n 1 -r
+  echo -e "\nCTRL+C erkannt..."
+  read -p "Export abgebrochen. Wartungsmodus beibehalten? [j/N] " -n 1 -r
   echo
-  if ! [[ "$REPLY" =~ ^[Jj]$ ]] ;	then
+  if [[ "${stopWebserverDuringBackup,,}" == 'true' ]] ; then
+    f_WebServer start  # Webserver starten
+  else
+    f_NextcloudVHost enable  # Nextcloud VHost aktivieren
+  fi
+
+  if ! [[ "${REPLY,,}" == 'j' ]] ;	then
     f_MaintenanceMode off
   else
     echo "Wartungsmodus bleibt aktiviert."
   fi
-  f_WebServer start
+
   exit 1
 }
 
@@ -49,7 +56,7 @@ f_MaintenanceMode() {  # $1 'on' oder 'off'
 }
 
 f_WebServer() {  # $1 'start' oder 'stop'
-  local action="$1"
+  local action="${1,,}"
   printf '%(%H:%M:%S)T: %b\n' -1 "Webserver: ${action^}…"  # Erstes Zeichen groß
   systemctl "${action,,}" "$webserverServiceName"
   echo -e "Fertig\n"
@@ -98,7 +105,6 @@ if ! grep -q "^stopWebserverDuringBackup=" "${SELF_PATH}/${CONFIG_FILE}"; then
     exit 1
 fi
 
-
 if [[ "$#" -ne 1 ]] ; then
   f_errorecho "FEHLER: Das Skript benötigt Parameter 'before' oder 'after'"
   exit 1
@@ -143,6 +149,9 @@ case "$1" in
     f_MaintenanceMode off      # Wartungsmodus deaktivieren
     rm "/tmp/.ncdb/${fileNameBackupDb}"  # Temporäre Daten löschen
     ;;
-  *) f_errorecho "Unbekannter Parameter <${1}>"  ;;
+  *)
+    f_errorecho "Unbekannter Parameter <${1}>"
+    exit 1
+    ;;
  esac
 
