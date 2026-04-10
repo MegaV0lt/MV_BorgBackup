@@ -103,7 +103,7 @@ else
 fi
 
 # Prüfen ob Konfigurationsdatei aktuell ist
-if [[ -z "$stopWebserverDuringBackup" ]] ; then
+if [[ -z "${stopWebserverDuringBackup:-}" ]] ; then
     f_errorecho "FEHLER: Konfigurationsdatei ist veraltet."
     f_errorecho "Bitte setup.sh erneut ausführen, um die Konfigurationsdatei zu aktualisieren."
     exit 1
