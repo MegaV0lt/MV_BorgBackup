@@ -16,7 +16,7 @@
 # 	- MySQL/MariaDB
 # 	- PostgreSQL
 #
-# VERSION=260409
+# VERSION=260410
 
 set -Eeuo pipefail  # Beenden bei jedem Fehler
 trap f_CtrlC INT    # CTRL+C
@@ -58,7 +58,7 @@ f_MaintenanceMode() {  # $1 'on' oder 'off'
 f_WebServer() {  # $1 'start' oder 'stop'
   local action="${1,,}"
   printf '%(%H:%M:%S)T: %b\n' -1 "Webserver: ${action^}…"  # Erstes Zeichen groß
-  systemctl "${action,,}" "$webserverServiceName"
+  systemctl "$action" "$webserverServiceName"
   echo -e "Fertig\n"
 }
 
@@ -67,14 +67,14 @@ f_NextcloudVHost() {  # $1 'enable' oder 'disable'
   printf '%(%H:%M:%S)T: %b\n' -1 "NextcloudVirtual Host: ${action^}…"  # Erstes Zeichen groß
   local vHostFile
   if [[ "$webserverServiceName" == 'nginx' ]] ; then
-    if [[ "${action,,}" == 'enable' ]] ; then
+    if [[ "$action" == 'enable' ]] ; then
       mv "${vHostFile}.disabled" "$vHostFile"
     else
       mv "$vHostFile" "$vHostFile.disabled"
     fi
     systemctl reload nginx
   else
-    if [[ "${action,,}" == 'enable' ]] ; then
+    if [[ "$action" == 'enable' ]] ; then
       a2ensite "${vHostFile##*/}"  # Nur Dateiname
     else
       a2dissite "${vHostFile##*/}"  # Nur Dateiname
@@ -83,34 +83,40 @@ f_NextcloudVHost() {  # $1 'enable' oder 'disable'
   fi
   }
 
+# Prüfen ob Skript mit root Rechten ausgeführt wird
+if [[ "$EUID" != '0' ]] ; then
+  f_errorecho 'FEHLER: Dieses Skript benötigt root!'
+  exit 1
+fi
+
 # Konfiguration vorhanden?
 if [[ -f "${SELF_PATH}/${CONFIG_FILE}" ]] ; then
   # shellcheck source=NC_DB_Export.conf.sample
-  source "${SELF_PATH}/${CONFIG_FILE}" || exit 1  # Read configuration variables
+  source "${SELF_PATH}/${CONFIG_FILE}" || {  # Read configuration variables
+    f_errorecho "FEHLER: Konnte Konfigurationsdatei ${SELF_PATH}/${CONFIG_FILE} nicht lesen!"
+    exit 1
+  }
 else
   f_errorecho "FEHLER: Konfiguration ${SELF_PATH}/${CONFIG_FILE} nicht gefunden!"
   f_errorecho 'Die Datei kann mit dem Skript setup.sh automatisch erzeugt werden.'
   exit 1
 fi
 
-if [[ "$EUID" != '0' ]] ; then
-  f_errorecho 'FEHLER: Dieses Skript benötigt root!'
-  exit 1
-fi
-
 # Prüfen ob Konfigurationsdatei aktuell ist
-if ! grep -q "^stopWebserverDuringBackup=" "${SELF_PATH}/${CONFIG_FILE}"; then
+if [[ -z "$stopWebserverDuringBackup" ]] ; then
     f_errorecho "FEHLER: Konfigurationsdatei ist veraltet."
     f_errorecho "Bitte setup.sh erneut ausführen, um die Konfigurationsdatei zu aktualisieren."
     exit 1
 fi
 
-if [[ "$#" -ne 1 ]] ; then
-  f_errorecho "FEHLER: Das Skript benötigt Parameter 'before' oder 'after'"
+# Parameter prüfen
+OPTION="${1,,}"  # Parameter in Kleinbuchstaben
+if [[ "$OPTION" != 'before' && "$OPTION" != 'after' ]] ; then
+  f_errorecho "FEHLER: Das Skript benötigt Parameter 'before' oder 'after'."
   exit 1
 fi
 
-case "$1" in
+case "$OPTION" in
   before)
     f_MaintenanceMode on  # Wartungsmodus aktivieren
     if [[ "${stopWebserverDuringBackup,,}" == 'true' ]] ; then
@@ -119,14 +125,23 @@ case "$1" in
       f_NextcloudVHost disable  # Nextcloud VHost deaktivieren
     fi
     # Backup DB
-    mkdir --parents /tmp/.ncdb
+    mkdir --parents /tmp/.ncdb || {
+      f_errorecho "FEHLER: Konnte temporäres Verzeichnis /tmp/.ncdb nicht erstellen!"
+      exit 1
+    }
     if [[ "${databaseSystem,,}" == 'mysql' || "${databaseSystem,,}" == 'mariadb' ]] ; then
       printf '%(%H:%M:%S)T: %b\n' -1 "Exportiere Nextcloud Datenbank (MySQL/MariaDB)…"
       if ! [[ -x "$(command -v mysqldump)" ]] ; then
         f_errorecho "FEHLER: MySQL/MariaDB ist nicht installiert (mysqldump nicht gefunden)."
         f_errorecho "FEHLER: Datenbank Export nicht möglich!"
       else
-        mysqldump --single-transaction -h localhost -u "$dbUser" -p"$dbPassword" "$nextcloudDatabase" > "/tmp/.ncdb/${fileNameBackupDb}"
+        mysqldump --single-transaction -h localhost -u "$dbUser" -p"$dbPassword" "$nextcloudDatabase" > "/tmp/.ncdb/${fileNameBackupDb}" 2>/tmp/.ncdb/db_export_error.log || {
+          f_errorecho "FEHLER: Datenbank Export fehlgeschlagen!"
+          f_errorecho "Details:"
+          cat /tmp/.ncdb/db_export_error.log 1>&2
+          rm /tmp/.ncdb/db_export_error.log
+          exit 1
+        }
       fi
       echo -e "Fertig\n"
     elif [[ "${databaseSystem,,}" == 'postgresql' || "${databaseSystem,,}" == 'pgsql' ]] ; then
